@@ -1,0 +1,96 @@
+{
+  "projectType": "saas",
+  "projectName": "RollingGo Partner Center",
+  "projectDescription": "RollingGo Partner Center is a self-service onboarding portal that lets enterprises, developers, KOL affiliates, and individual users instantly access travel MCP products, APIs, and distribution tools.",
+  "theme": "almond",
+  "primaryColor": "#ef7025",
+  "lightColor": "#eec9bc",
+  "darkColor": "#4fa1ab",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "regional-setup"
+            ]
+          },
+          {
+            "group": "Partner Types",
+            "pages": [
+              "partners/enterprise",
+              "partners/developer",
+              "partners/kol",
+              "partners/personal"
+            ]
+          },
+          {
+            "group": "Credentials & Access",
+            "pages": [
+              "credentials/api-keys",
+              "credentials/distribution-links",
+              "credentials/account-activation"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/mcp-integration",
+              "guides/ai-tool-setup",
+              "guides/affiliate-monetization"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
+              "support/faq",
+              "support/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "MCP Endpoints",
+            "pages": [
+              "api/travel-search",
+              "api/booking",
+              "api/webhooks"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Instant partner onboarding with zero review wait time — submit and receive credentials immediately",
+    "Four partner types: Enterprise, Developer, KOL Affiliate, and Personal",
+    "Enterprise and Developer partners receive an API Key and account password via email on submission",
+    "KOL Affiliates receive a unique H5 distribution link instantly upon submission",
+    "Personal users get MCP/Skill configuration bundles and install commands without creating an account",
+    "Global region binding: China Mainland (rollinggo.cn / CNY) and International (rollinggo.ai / USD)",
+    "Email verification with 6-digit OTP at registration"
+  ],
+  "publicApiSurface": [
+    "API Key (issued to Enterprise and Developer partners)",
+    "MCP connection parameters (issued to Enterprise partners)",
+    "H5 affiliate distribution link (issued to KOL partners)",
+    "Personal configuration package / install commands (issued to Personal users)",
+    "Travel MCP product endpoints",
+    "OAuth dynamic authentication for Personal users",
+    "Region-specific domains: rollinggo.cn (CN) and rollinggo.ai (international)"
+  ]
+}

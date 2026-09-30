@@ -1,0 +1,139 @@
+---
+title: "Integrate RollingGo Travel MCP into Your Application"
+sidebarTitle: "MCP Integration"
+description: "A step-by-step guide for connecting your application or AI agent to RollingGo's travel MCP endpoints and making your first booking call."
+---
+
+RollingGo exposes its travel capabilities — flight search, hotel booking, and itinerary management — as structured tools via the **Model Context Protocol (MCP)**. MCP is an open standard that lets AI agents discover and call external tools over a WebSocket or HTTP connection, turning your application into a capable travel assistant without hand-rolling custom integrations. If you hold an Enterprise or Developer partner account, your API Key is all you need to start making live travel calls today.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- An active **Enterprise** or **Developer** partner account
+- Your **API Key** — retrieve it from [Partner Center → Credentials → API Keys](/credentials/api-keys)
+- **Node.js 18+** or **Python 3.10+** installed, depending on your stack
+
+## MCP Connection Parameters
+
+Use the following parameters when configuring your MCP client:
+
+| Parameter | China | International |
+|---|---|---|
+| **Base URL** | `wss://mcp.rollinggo.cn/v1` | `wss://mcp.rollinggo.ai/v1` |
+| **Protocol** | WebSocket (streaming) or HTTP (single-turn) | WebSocket (streaming) or HTTP (single-turn) |
+| **Authentication** | Bearer token in connection handshake | Bearer token in connection handshake |
+
+Pass your API Key as a Bearer token in the `Authorization` header during the WebSocket upgrade handshake:
+
+```
+Authorization: Bearer <YOUR_API_KEY>
+```
+
+<Tip>
+  Use the China region endpoint (`mcp.rollinggo.cn`) if your server is deployed within mainland China. The geographically closer endpoint significantly reduces connection latency.
+</Tip>
+
+## Integration Steps
+
+<Steps>
+  <Step title="Install the RollingGo MCP SDK">
+    Add the official client library to your project:
+
+    <CodeGroup>
+      ```bash npm
+      npm install @rollinggo/mcp-client
+      ```
+
+      ```bash yarn
+      yarn add @rollinggo/mcp-client
+      ```
+
+      ```bash pnpm
+      pnpm add @rollinggo/mcp-client
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Initialize the client with your API Key">
+    Import the client and configure it with your API Key and target region. Store your key in an environment variable — never hard-code it in source files.
+
+    ```javascript rollinggo-client.js
+    import { RollingGoMCP } from '@rollinggo/mcp-client';
+
+    const client = new RollingGoMCP({
+      apiKey: process.env.ROLLINGGO_API_KEY,
+      region: 'international', // or 'china'
+    });
+    ```
+  </Step>
+
+  <Step title="Make a travel search call">
+    Call the `travel_search` tool with your desired route and travel parameters:
+
+    ```javascript
+    const results = await client.tools.call('travel_search', {
+      origin: 'HKG',
+      destination: 'NRT',
+      departDate: '2025-09-01',
+      passengers: 1,
+    });
+    console.log(results);
+    ```
+  </Step>
+
+  <Step title="Handle the response">
+    A successful search response returns a `status` field and a `results` array. Each result includes flight identifiers, schedule details, and pricing:
+
+    ```json
+    {
+      "status": "ok",
+      "results": [
+        {
+          "flightId": "CX520",
+          "origin": "HKG",
+          "destination": "NRT",
+          "departureTime": "2025-09-01T10:30:00+08:00",
+          "price": { "amount": 3200, "currency": "HKD" }
+        }
+      ]
+    }
+    ```
+
+    Iterate over `results` to present options to your user or agent, and store the `flightId` of the chosen option for the next step.
+  </Step>
+
+  <Step title="Initiate a booking">
+    Pass the selected `flightId` and passenger details to the `booking_create` tool to start the reservation flow:
+
+    ```javascript
+    const booking = await client.tools.call('booking_create', {
+      flightId: 'CX520',
+      passengers: [
+        {
+          firstName: 'Alex',
+          lastName: 'Chan',
+          documentType: 'PASSPORT',
+          documentNumber: 'HK1234567',
+        },
+      ],
+      contactEmail: 'alex@example.com',
+    });
+
+    console.log('Booking reference:', booking.bookingReference);
+    ```
+
+    Save the returned `bookingReference` — your user will need it to manage or cancel the reservation later.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Travel Search API Reference" icon="magnifying-glass" href="/api/travel-search">
+    Explore all search parameters, filters, and response fields for the `travel_search` tool.
+  </Card>
+  <Card title="Booking API Reference" icon="ticket" href="/api/booking">
+    Full reference for creating, retrieving, and cancelling bookings via the MCP booking tools.
+  </Card>
+</CardGroup>

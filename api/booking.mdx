@@ -1,0 +1,221 @@
+---
+title: "POST /travel/book — Initiate and Retrieve Bookings"
+sidebarTitle: "Booking"
+description: "POST /travel/book converts a search offer into a confirmed reservation. GET /travel/booking/{id} retrieves live booking status, PNR, and pricing details."
+---
+
+This page covers two closely related endpoints: creating a new booking from a search offer, and retrieving the current status of an existing booking. Use `POST /travel/book` to convert an `offerId` from `/travel/search` into a confirmed reservation, and `GET /travel/booking/{id}` to check on that booking at any point afterward. Both endpoints are available to Enterprise and Developer partners.
+
+<Info>
+  **Base URLs**
+  - International: `https://api.rollinggo.ai/v1`
+  - China: `https://api.rollinggo.cn/v1`
+</Info>
+
+## Authentication
+
+Include your API key as a Bearer token in the `Authorization` header on all requests:
+
+```
+Authorization: Bearer rg_live_xxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+## Create a Booking
+
+```
+POST https://api.rollinggo.ai/v1/travel/book
+```
+
+Submit an `offerId` from `/travel/search` along with passenger details and contact information to create a booking. On success, you receive a `bookingId` and PNR that you can use to retrieve or reference the booking later.
+
+### Request Parameters
+
+<ParamField body="offerId" type="string" required>
+  The offer identifier returned by `POST /travel/search`. This value expires 15 minutes after the search — if it has expired, call `/travel/search` again to obtain a fresh one.
+</ParamField>
+
+<ParamField body="passengers" type="array" required>
+  A list of passenger objects. The number of passengers must match the `passengers` count used in the original search.
+
+  <Expandable title="Passenger object fields">
+    <ParamField body="passengers[].firstName" type="string" required>
+      Passenger's given name, exactly as it appears on their travel document.
+    </ParamField>
+
+    <ParamField body="passengers[].lastName" type="string" required>
+      Passenger's family name, exactly as it appears on their travel document.
+    </ParamField>
+
+    <ParamField body="passengers[].dateOfBirth" type="string" required>
+      Passenger's date of birth in `YYYY-MM-DD` format.
+    </ParamField>
+
+    <ParamField body="passengers[].documentType" type="string" required>
+      Type of identity document. Accepted values are `passport` and `national_id`.
+    </ParamField>
+
+    <ParamField body="passengers[].documentNumber" type="string" required>
+      The document's identification number.
+    </ParamField>
+
+    <ParamField body="passengers[].documentExpiry" type="string" required>
+      Document expiry date in `YYYY-MM-DD` format. The document must be valid for the duration of travel.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="contactEmail" type="string" required>
+  Email address where the booking confirmation is sent.
+</ParamField>
+
+<ParamField body="contactPhone" type="string" required>
+  Passenger contact phone number including country code (e.g., `+85291234567`).
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+```json book-request.json
+{
+  "offerId": "offer_cx520_20250901",
+  "passengers": [
+    {
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "dateOfBirth": "1990-05-15",
+      "documentType": "passport",
+      "documentNumber": "A12345678",
+      "documentExpiry": "2030-01-01"
+    }
+  ],
+  "contactEmail": "jane.doe@example.com",
+  "contactPhone": "+85291234567"
+}
+```
+</CodeGroup>
+
+### Example Response
+
+<CodeGroup>
+```json book-response.json
+{
+  "status": "ok",
+  "requestId": "req_9ab3cx",
+  "bookingId": "bk_XYZ9012",
+  "bookingStatus": "confirmed",
+  "pnr": "RGX7AB",
+  "totalPrice": {
+    "amount": 3200,
+    "currency": "HKD"
+  },
+  "confirmationEmail": "jane.doe@example.com"
+}
+```
+</CodeGroup>
+
+### Response Fields
+
+<ResponseField name="status" type="string">
+  `"ok"` on a successful response.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  A unique identifier for this request. Include this when contacting support.
+</ResponseField>
+
+<ResponseField name="bookingId" type="string">
+  A unique identifier for the created booking. Save this — you use it to retrieve the booking with `GET /travel/booking/{id}`.
+</ResponseField>
+
+<ResponseField name="bookingStatus" type="string">
+  The current state of the booking. See [Booking Status Values](#booking-status-values) below.
+</ResponseField>
+
+<ResponseField name="pnr" type="string">
+  The airline-issued Passenger Name Record (PNR) locator code (e.g., `RGX7AB`). Passengers use this code to check in and manage their reservation directly with the carrier.
+</ResponseField>
+
+<ResponseField name="totalPrice" type="object">
+  The total charged amount for the booking.
+
+  <Expandable title="totalPrice fields">
+    <ResponseField name="totalPrice.amount" type="number">
+      The total fare amount.
+    </ResponseField>
+
+    <ResponseField name="totalPrice.currency" type="string">
+      The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code for the amount.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Retrieve a Booking
+
+```
+GET https://api.rollinggo.ai/v1/travel/booking/{id}
+```
+
+Retrieve the current status and full details of an existing booking using its `bookingId`. The response shape mirrors the booking creation response, reflecting the latest `bookingStatus`.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The `bookingId` returned by `POST /travel/book` (e.g., `bk_XYZ9012`).
+</ParamField>
+
+### Example Request
+
+```http
+GET https://api.rollinggo.ai/v1/travel/booking/bk_XYZ9012
+Authorization: Bearer rg_live_xxxxxxxxxxxxxxxxxxxx
+```
+
+### Example Response
+
+The response has the same shape as the booking creation response, with the most up-to-date `bookingStatus`:
+
+<CodeGroup>
+```json retrieve-response.json
+{
+  "status": "ok",
+  "requestId": "req_4mn1pq",
+  "bookingId": "bk_XYZ9012",
+  "bookingStatus": "confirmed",
+  "pnr": "RGX7AB",
+  "totalPrice": {
+    "amount": 3200,
+    "currency": "HKD"
+  },
+  "confirmationEmail": "jane.doe@example.com"
+}
+```
+</CodeGroup>
+
+### Booking Status Values
+
+| Status | Meaning |
+|---|---|
+| `confirmed` | The booking is active and the reservation is held with the carrier. |
+| `pending` | The booking is being processed. Poll again in a few seconds. |
+| `failed` | The booking could not be completed. No charge was made. |
+| `cancelled` | The booking was successfully cancelled. |
+
+---
+
+## Error Responses
+
+<Warning>
+  Offer IDs expire **15 minutes** after the original search. If you receive an `expired_offer` error, call `POST /travel/search` again to get a fresh `offerId` and re-submit your booking request.
+</Warning>
+
+| HTTP Status | Code | Description |
+|---|---|---|
+| 400 | `invalid_params` | A required field is missing or a value is in an invalid format. |
+| 401 | `unauthorized` | The API key is missing, invalid, or revoked. |
+| 404 | `not_found` | The `bookingId` does not exist or does not belong to your account. |
+| 422 | `expired_offer` | The `offerId` has expired — call `/travel/search` again to get a new one. |
+| 422 | `unavailable` | The offer is no longer available at the quoted price. Search again for current options. |

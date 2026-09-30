@@ -1,0 +1,206 @@
+---
+title: "RollingGo Webhooks — Register, Verify, and Handle Events"
+sidebarTitle: "Webhooks"
+description: "Register HTTPS endpoints to receive RollingGo booking events in real time. Covers signature verification, supported event types, and retry behaviour."
+---
+
+Webhooks let you receive real-time HTTP notifications whenever a booking's status changes — for example, when a reservation moves from `pending` to `confirmed`, or when a carrier cancels a booking on your behalf. Instead of polling `GET /travel/booking/{id}`, you register a URL and RollingGo pushes event payloads to it automatically. This feature is available to Enterprise and Developer partners.
+
+<Info>
+  **Base URLs**
+  - International: `https://api.rollinggo.ai/v1`
+  - China: `https://api.rollinggo.cn/v1`
+</Info>
+
+## Authentication
+
+Include your API key as a Bearer token in the `Authorization` header on all management requests:
+
+```
+Authorization: Bearer rg_live_xxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+## Supported Events
+
+Subscribe to one or more of the following event types when registering your webhook:
+
+| Event | Trigger |
+|---|---|
+| `booking.confirmed` | A booking transitions to `confirmed` status. |
+| `booking.failed` | A booking fails or is rejected by the carrier. |
+| `booking.cancelled` | A booking is cancelled, either by the passenger or the carrier. |
+| `booking.updated` | Any field on a booking record changes (e.g., schedule update, seat reassignment). |
+
+---
+
+## Register a Webhook
+
+```
+POST https://api.rollinggo.ai/v1/webhooks/register
+```
+
+Register an HTTPS endpoint to start receiving event notifications. You can subscribe to one or more event types in a single registration.
+
+### Request Parameters
+
+<ParamField body="url" type="string" required>
+  The fully qualified HTTPS URL of your endpoint that will receive event `POST` requests (e.g., `https://yourapp.example.com/webhooks/rollinggo`). Plain HTTP URLs are not accepted.
+</ParamField>
+
+<ParamField body="events" type="array" required>
+  An array of event type strings to subscribe to. Must contain at least one entry. See [Supported Events](#supported-events) for valid values.
+</ParamField>
+
+<ParamField body="secret" type="string">
+  A shared secret string used to generate HMAC-SHA256 signatures on every delivery. Strongly recommended — see [Verifying Webhook Signatures](#verifying-webhook-signatures) for how to use it.
+</ParamField>
+
+### Example Request
+
+<CodeGroup>
+```json register-webhook.json
+{
+  "url": "https://yourapp.example.com/webhooks/rollinggo",
+  "events": ["booking.confirmed", "booking.cancelled"],
+  "secret": "your_webhook_secret"
+}
+```
+</CodeGroup>
+
+### Example Response
+
+<CodeGroup>
+```json register-response.json
+{
+  "status": "ok",
+  "webhookId": "wh_abc789",
+  "url": "https://yourapp.example.com/webhooks/rollinggo",
+  "events": ["booking.confirmed", "booking.cancelled"]
+}
+```
+</CodeGroup>
+
+### Response Fields
+
+<ResponseField name="status" type="string">
+  `"ok"` on a successful registration.
+</ResponseField>
+
+<ResponseField name="webhookId" type="string">
+  A unique identifier for this webhook registration. Save this — you need it to remove the webhook later with `DELETE /webhooks/{id}`.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The registered endpoint URL, echoed back for confirmation.
+</ResponseField>
+
+<ResponseField name="events" type="array">
+  The list of event types this webhook is subscribed to.
+</ResponseField>
+
+---
+
+## Webhook Payload
+
+RollingGo delivers a `POST` request to your registered URL for each matching event. Every payload follows this structure:
+
+<CodeGroup>
+```json webhook-payload.json
+{
+  "event": "booking.confirmed",
+  "timestamp": "2025-09-01T11:45:00Z",
+  "data": {
+    "bookingId": "bk_XYZ9012",
+    "bookingStatus": "confirmed",
+    "pnr": "RGX7AB"
+  }
+}
+```
+</CodeGroup>
+
+<ResponseField name="event" type="string">
+  The event type that triggered this delivery (e.g., `booking.confirmed`).
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  ISO 8601 UTC timestamp of when the event was generated on RollingGo's servers.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The event payload. For booking events, this contains `bookingId`, `bookingStatus`, and `pnr`.
+</ResponseField>
+
+---
+
+## Verifying Webhook Signatures
+
+When you provide a `secret` during registration, RollingGo signs every outgoing request with HMAC-SHA256 and includes the hex-encoded signature in the `X-RollingGo-Signature` header. Always verify this signature before processing the event payload.
+
+To verify the signature, compute an HMAC-SHA256 of the raw request body using your secret, then compare it to the value in the header. Use a timing-safe comparison to prevent timing attacks:
+
+<CodeGroup>
+```javascript verify-webhook.js
+const crypto = require('crypto');
+
+function verifySignature(payload, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+}
+```
+</CodeGroup>
+
+<Tip>
+  Always verify webhook signatures before processing events to ensure requests genuinely originate from RollingGo and have not been tampered with in transit.
+</Tip>
+
+---
+
+## Remove a Webhook
+
+```
+DELETE https://api.rollinggo.ai/v1/webhooks/{id}
+```
+
+Deregister a webhook to stop receiving event deliveries to that endpoint.
+
+### Path Parameters
+
+<ParamField path="id" type="string" required>
+  The `webhookId` returned when you registered the webhook (e.g., `wh_abc789`).
+</ParamField>
+
+### Example Request
+
+```http
+DELETE https://api.rollinggo.ai/v1/webhooks/wh_abc789
+Authorization: Bearer rg_live_xxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+## Error Responses
+
+| HTTP Status | Code | Description |
+|---|---|---|
+| 400 | `invalid_params` | A required field is missing or a value is in an invalid format (e.g., a non-HTTPS URL or an unrecognised event type). |
+| 401 | `unauthorized` | The API key is missing, invalid, or revoked. |
+| 404 | `not_found` | The `webhookId` does not exist or does not belong to your account. |
+| 429 | `rate_limited` | You have exceeded your rate limit. Slow down and retry. |
+
+---
+
+## Delivery and Retries
+
+<Note>
+  Your webhook endpoint must respond with an HTTP `200` status within **5 seconds** of receiving a delivery. If it does not, RollingGo marks the attempt as failed and retries automatically. Failed deliveries are retried up to **3 times** using exponential backoff.
+</Note>
+
+To keep delivery latency low, accept the webhook payload and enqueue it for asynchronous processing rather than performing heavy work in the request handler before responding.

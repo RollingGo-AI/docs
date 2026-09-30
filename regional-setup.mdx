@@ -1,0 +1,44 @@
+---
+title: "Region Selection and Global Settings for Partner Accounts"
+sidebarTitle: "Regional Setup"
+description: "Your region choice during onboarding permanently binds your domain, billing currency, email sender, and routing. Learn how to pick the right region."
+---
+
+When you register a partner account, you make one region selection — and that choice shapes every aspect of your account permanently. Your dashboard domain, billing currency, notification emails, and OTP routing all follow the region you pick during onboarding. There is no way to change this after you submit your application, so take a moment to confirm you're choosing the right region before you proceed.
+
+## Region Comparison
+
+| Region | Domain | Billing Currency | Email Sender | Email Routing |
+|---|---|---|---|---|
+| China Mainland | [rollinggo.cn](https://rollinggo.cn) | CNY (人民币) | partner@rollinggo.cn | Domestic node |
+| International / HK / Macau / Taiwan | [rollinggo.ai](https://rollinggo.ai) | USD | partner@rollinggo.ai | International node |
+
+<Warning>
+  **Your region binding is permanent.** Once you submit your application, the region associated with your account cannot be changed. Double-check your selection before clicking **Submit** — there is no way to migrate an existing account to a different region.
+</Warning>
+
+## What Region Affects
+
+Your region selection is not cosmetic — it controls several core aspects of your partner account:
+
+- **Dashboard domain** — Your Partner Center dashboard is hosted on either `rollinggo.cn` or `rollinggo.ai` depending on your region. Bookmarks, SSO configurations, and API base URLs all reflect this domain.
+- **Billing currency** — All charges, payouts, and financial reporting use the currency of your selected region: CNY for China Mainland, USD for International accounts.
+- **Email sender address** — System notifications, including OTP codes, credential delivery, and account alerts, come from `partner@rollinggo.cn` or `partner@rollinggo.ai`. Add the appropriate address to your allowlist to avoid deliverability issues.
+- **OTP and credential email language** — Transactional emails are routed through the regional node closest to your selection, which also determines the default language used in OTP and welcome emails.
+
+## Which Region Should I Choose?
+
+**Choose China Mainland** if:
+- Your end users are primarily located within mainland China
+- Your products, inventory, or travel content are focused on the Chinese domestic market
+- Your payment operations, invoicing, or financial reconciliation use CNY
+
+**Choose International** if:
+- You operate globally or primarily outside mainland China
+- Your business or audience is based in Hong Kong, Macau, or Taiwan
+- Your payment operations use USD or non-CNY currencies
+- You need your dashboard and API traffic routed through international nodes
+
+<Note>
+  If you need to operate in **both** regions — for example, running a China Mainland deployment alongside an international one — you must register **separate partner accounts** for each region. A single account cannot span both `rollinggo.cn` and `rollinggo.ai`.
+</Note>

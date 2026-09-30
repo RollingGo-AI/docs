@@ -1,0 +1,102 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "almond",
+  "name": "RollingGo Partner Center",
+  "colors": {
+    "primary": "#ef7025",
+    "light": "#eec9bc",
+    "dark": "#4fa1ab"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:partner@rollinggo.ai"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Join as Partner",
+      "href": "https://rollinggo.ai"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "regional-setup"
+            ]
+          },
+          {
+            "group": "Partner Types",
+            "pages": [
+              "partners/enterprise",
+              "partners/developer",
+              "partners/kol",
+              "partners/personal"
+            ]
+          },
+          {
+            "group": "Credentials & Access",
+            "pages": [
+              "credentials/api-keys",
+              "credentials/distribution-links",
+              "credentials/account-activation"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/mcp-integration",
+              "guides/ai-tool-setup",
+              "guides/affiliate-monetization"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
+              "support/faq",
+              "support/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "MCP Endpoints",
+            "pages": [
+              "api/travel-search",
+              "api/booking",
+              "api/webhooks"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/rollinggo"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+---
+title: "Authenticate RollingGo API Requests Using API Keys"
+sidebarTitle: "Authentication"
+description: "How to authenticate your RollingGo API requests using Bearer token authorization, understand API Key formats, and handle common auth errors."
+---
+
+Every request to the RollingGo API must be authenticated with your API Key passed as a Bearer token in the `Authorization` header. Requests that are missing this header, or that supply an invalid key, are rejected with a `401` response before any processing occurs.
+
+## How to Authenticate
+
+Add your API Key to the `Authorization` header of every request using the `Bearer` scheme.
+
+### Raw HTTP
+
+```http
+POST https://api.rollinggo.ai/v1/travel/search
+Authorization: Bearer rg_live_xxxxxxxxxxxxxxxxxxxx
+Content-Type: application/json
+
+{
+  "origin": "HKG",
+  "destination": "NRT",
+  "departDate": "2025-09-01"
+}
+```
+
+### JavaScript (Fetch)
+
+```javascript auth-example.js
+const response = await fetch('https://api.rollinggo.ai/v1/travel/search', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.ROLLINGGO_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    origin: 'HKG',
+    destination: 'NRT',
+    departDate: '2025-09-01',
+  }),
+});
+const data = await response.json();
+```
+
+### Python
+
+```python auth-example.py
+import os, requests
+
+headers = {
+    'Authorization': f'Bearer {os.environ["ROLLINGGO_API_KEY"]}',
+    'Content-Type': 'application/json',
+}
+resp = requests.post(
+    'https://api.rollinggo.ai/v1/travel/search',
+    headers=headers,
+    json={'origin': 'HKG', 'destination': 'NRT', 'departDate': '2025-09-01'},
+)
+data = resp.json()
+```
+
+## API Key Format
+
+RollingGo API Keys follow a consistent naming convention that makes it easy to identify their environment at a glance:
+
+| Environment | Prefix | Example |
+|---|---|---|
+| Production | `rg_live_` | `rg_live_xxxxxxxxxxxxxxxxxxxx` |
+| Test / Development | `rg_test_` | `rg_test_xxxxxxxxxxxxxxxxxxxx` |
+
+<Info>
+  China Mainland keys use the same `rg_live_` and `rg_test_` prefixes but are **bound exclusively to the `.cn` endpoints** (`https://api.rollinggo.cn/v1`). Using a China key against the international endpoint — or vice versa — results in an `invalid_key` error.
+</Info>
+
+## Authentication Errors
+
+The table below covers every authentication-related error you may encounter, along with its root cause and the recommended fix.
+
+| HTTP Status | Error Code | Cause | Fix |
+|---|---|---|---|
+| `401` | `unauthorized` | Missing or malformed `Authorization` header | Add `Authorization: Bearer YOUR_API_KEY` to every request |
+| `401` | `invalid_key` | API Key is invalid or has been deleted | Check the key in your dashboard and regenerate if needed |
+| `403` | `forbidden` | Key is valid but lacks permission for this resource | Confirm your partner type (Enterprise or Developer) includes API access |
+
+## Security Best Practices
+
+Follow these practices to keep your API Keys secure:
+
+- **Use environment variables.** Store keys in environment variables or a secrets manager — never hardcode them in source files.
+- **Keep keys server-side.** Never include an API Key in code that is bundled or served to end users.
+- **Rotate compromised keys immediately.** If a key is exposed, regenerate it in your dashboard under **Settings → API Keys** and revoke the old one.
+- **Use one key per environment.** Create separate keys for development, staging, and production to limit blast radius if one is compromised. You can create additional keys in your dashboard under **Settings → API Keys**.
+
+<Warning>
+  **Do not include your API Key in client-side JavaScript served to end users.** Keys embedded in frontend bundles are publicly visible and can be extracted, stolen, and misused. Always make RollingGo API calls from your server or a secure backend function.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Manage API Keys" icon="key" href="/credentials/api-keys">
+    Find, create, and regenerate your API Keys in the Partner Center.
+  </Card>
+  <Card title="API Overview" icon="map" href="/api/overview">
+    Review base URLs, response formats, and all available endpoints.
+  </Card>
+</CardGroup>

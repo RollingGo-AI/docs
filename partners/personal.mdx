@@ -1,0 +1,86 @@
+---
+title: "Personal User Setup: Add Travel Booking to Your AI Tools"
+sidebarTitle: "Personal"
+description: "Set up RollingGo travel booking Skills inside AI tools like OpenClaw, Cursor, and Claude Code. No Partner Center account required — instant config package."
+---
+
+The Personal path lets you add RollingGo's travel booking Skills directly into the AI tools you already use — without creating a Partner Center account. Fill out a short questionnaire, and you receive a ready-to-use configuration package along with copy-paste install commands right on screen. A download link for the full resource bundle is also sent to your email. At runtime, you authenticate with your own phone number or email via OAuth — there's no static API Key involved.
+
+## What You Get
+
+<CardGroup cols={3}>
+  <Card title="Instant Config Package" icon="box">
+    Your configuration package and install commands appear on screen the moment you submit.
+  </Card>
+  <Card title="No Account Required" icon="user-slash">
+    The Personal path is account-free. Nothing is created in Partner Center on your behalf.
+  </Card>
+  <Card title="Download Links by Email" icon="envelope">
+    A full resource bundle download link is sent to the email address you provide.
+  </Card>
+</CardGroup>
+
+## Setup Steps
+
+<Steps>
+  <Step title="Open the Personal card">
+    Go to the [RollingGo Partner Center](https://partner.rollinggo.ai) homepage and click the **Personal** card.
+  </Step>
+  <Step title="Select your region">
+    Choose **China Mainland** or **International**. This determines which service node you connect to and which AI tools appear in the next step.
+
+    | Region | Endpoint | Currency |
+    |---|---|---|
+    | China Mainland | rollinggo.cn | CNY |
+    | International | rollinggo.ai | USD |
+
+    <Warning>Region selection is permanent for this configuration package. If you later need a different region, you'll need to generate a new package.</Warning>
+  </Step>
+  <Step title="Fill out the quick questionnaire">
+    Answer three short questions to generate your personalized config package:
+
+    - **AI tools you use** — multi-select dropdown listing the tools available for your chosen region (see the [supported tools table](#supported-ai-tools) below). Select everything you want to configure now.
+    - **Booking preference** — choose one:
+      - **Price-focused** — prioritize the lowest available fare or rate
+      - **AI smart recommendation** — let the model weigh price, convenience, and reviews
+      - **Brand-name platform** — prefer results from recognized name-brand suppliers
+    - **Email address** — used only to send your download resource. This is **not** a login — no account is created.
+    - **Email OTP** — click **Send Code** and enter the 6-digit code delivered to your email to confirm your address.
+  </Step>
+  <Step title="Submit and retrieve your config package">
+    Click **Submit**. Your **configuration package** and **install commands** appear on screen immediately, tailored to the tools and preferences you selected. Follow the on-screen instructions to paste the config into each tool.
+  </Step>
+  <Step title="Download the full resource bundle from email">
+    Check your inbox for a message from RollingGo Partner Center. It contains a **download link** for the complete resource bundle, including config files, a setup guide, and troubleshooting tips.
+  </Step>
+</Steps>
+
+## Supported AI Tools
+
+The tools available in the multi-select dropdown depend on the region you chose. Both regions include OpenClaw.
+
+<CardGroup cols={2}>
+  <Card title="China Mainland Node" icon="flag">
+    - **OpenClaw**
+    - **WorkBuddy**
+    - **Feishu Aily** (Lark Aily)
+  </Card>
+  <Card title="International Node" icon="globe">
+    - **Claude Code**
+    - **Cursor**
+    - **Codex**
+    - **OpenClaw**
+  </Card>
+</CardGroup>
+
+<Note>
+  The Personal path does **not** create a Partner Center account. You authenticate at runtime using OAuth with your phone number or email — no static API Key is issued or required. If you later need API access to build an integration, or want to distribute travel products as an affiliate, register separately as a [Developer](/partners/developer) or [KOL](/partners/kol) partner.
+</Note>
+
+## What Happens Next
+
+Once you've pasted the config into your AI tool, you're ready to make your first travel booking request. Check the setup guide for tool-specific instructions:
+
+<Card title="AI Tool Setup Guide" icon="screwdriver-wrench" href="/guides/ai-tool-setup">
+  Step-by-step instructions for activating RollingGo travel Skills in each supported AI tool, including troubleshooting common configuration issues.
+</Card>

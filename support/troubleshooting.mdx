@@ -1,0 +1,148 @@
+---
+title: Troubleshoot Common RollingGo Partner Center Issues
+sidebarTitle: Troubleshooting
+description: Diagnose and fix common issues with registration, API Key errors, email delivery, and MCP connection problems in the RollingGo Partner Center.
+---
+
+Use this page as a quick reference when something isn't working as expected. Each section covers the most common symptoms and the steps to resolve them. If your issue isn't listed here or the steps below don't help, contact support — details at the bottom of this page.
+
+---
+
+## Registration Issues
+
+<AccordionGroup>
+
+  <Accordion title='"This email is already registered"'>
+    This email address is already linked to a Partner Center account. You have two options:
+
+    - **Regain access to the existing account:** Use the **Forgot Password** link on the login page.
+    - **Create a new account:** Register with a different email address.
+
+    Note that each email can only be associated with one partner account across all partner types.
+  </Accordion>
+
+  <Accordion title="OTP not received">
+    1. Check your **spam or junk** folder.
+    2. Note that OTPs expire after **10 minutes** — if yours has expired, return to the form and request a new one.
+    3. Confirm the email address shown on screen matches the one you intended to use. If it doesn't, go back and correct it before requesting a new OTP.
+  </Accordion>
+
+  <Accordion title="Invalid Social Credit Code (Enterprise only)">
+    Your Social Credit Code must be exactly **18 characters**. Cross-check the value against your official **business registration certificate** — transcription errors (e.g., confusing `0` with `O`, or `1` with `I`) are the most common cause of this error.
+  </Accordion>
+
+  <Accordion title="Form won't submit">
+    Check the following before resubmitting:
+
+    - All **required fields** are filled in (required fields are marked with an asterisk).
+    - Your **phone number includes the country code** — for example, `+86` for China Mainland or `+1` for the United States.
+    - Your browser is up to date and JavaScript is enabled.
+
+    If the form still won't submit, try a different browser or disable any extensions that may be interfering with form submission.
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## API Key Errors
+
+The table below maps HTTP status codes to their meanings and recommended fixes.
+
+| HTTP Status | Code | Meaning | Fix |
+|---|---|---|---|
+| `401` | `unauthorized` | API Key is missing or invalid | Confirm your `Authorization` header uses the `Bearer` scheme and that the key value is copied correctly with no extra spaces |
+| `403` | `forbidden` | Key lacks permission for this endpoint | Verify your partner type supports this endpoint — API access is available to **Enterprise** and **Developer** accounts only |
+| `429` | `rate_limited` | Too many requests sent in a short window | Implement **exponential backoff** in your client; review your plan's rate limits in the dashboard under **Settings → API Keys** |
+| `500` | `server_error` | Internal server error | Retry after a few seconds using exponential backoff; contact support if the error persists across multiple retries |
+
+---
+
+## MCP Connection Problems
+
+<AccordionGroup>
+
+  <Accordion title="Connection timeout">
+    Verify you're pointing at the correct **regional endpoint** for your account:
+
+    - **China Mainland:** `mcp.rollinggo.cn`
+    - **International:** `mcp.rollinggo.ai`
+
+    Using the wrong endpoint will result in a timeout because requests are not forwarded across regions. Update your MCP server config to use the endpoint that matches your registration region.
+  </Accordion>
+
+  <Accordion title="Authentication failure on MCP connect">
+    Your API Key may have been rotated or corrupted in your config file. To fix this:
+
+    1. Log in to your Partner Center dashboard.
+    2. Go to **Settings → API Keys** and generate a new key.
+    3. Copy the new key and update it in your MCP server configuration file.
+    4. Restart your AI tool or MCP client to apply the change.
+  </Accordion>
+
+  <Accordion title="Tool not appearing in AI tool (Personal path)">
+    Some AI tools do not detect new MCP servers until they are fully restarted. After adding the MCP server config to your AI tool's settings:
+
+    1. **Fully quit** the application (don't just close the window — ensure the process has stopped).
+    2. Reopen the application.
+    3. Check the tool list again.
+
+    If the tool still doesn't appear, confirm the config JSON is valid and that the install command completed without errors.
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Email Delivery
+
+<AccordionGroup>
+
+  <Accordion title="Initial password email not received">
+    Password emails are sent immediately after registration and typically arrive within **2–3 minutes**.
+
+    - Check your **spam or junk** folder.
+    - Whitelist the appropriate sender for your region: `partner@rollinggo.ai` (International) or `partner@rollinggo.cn` (China Mainland).
+    - Confirm you're checking the inbox for the exact email address you registered with.
+
+    If the email still hasn't arrived, use the **Forgot Password** link on the login page to set your password without it.
+  </Accordion>
+
+  <Accordion title="Config package email not received (Personal path)">
+    Config package delivery follows the same process as password emails. Allow **2–3 minutes**, check your spam folder, and whitelist the sender address for your region. If you still haven't received it after 5 minutes, return to the registration page and re-submit your details.
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Account Access
+
+<AccordionGroup>
+
+  <Accordion title="Locked out of dashboard">
+    Use the **Forgot Password** link on your region's Partner Center login page. Enter your registered email address and follow the reset link in the email you receive.
+
+    - China Mainland: `partner.rollinggo.cn`
+    - International: `partner.rollinggo.ai`
+  </Accordion>
+
+  <Accordion title='Seeing an "account not found" error'>
+    You may be logging in through the wrong regional dashboard. China Mainland and International are entirely separate regions — an account created in one region cannot log in from the other region's portal.
+
+    - **China Mainland accounts** → log in at `partner.rollinggo.cn`
+    - **International accounts** → log in at `partner.rollinggo.ai`
+
+    Switch to the correct URL and try again.
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+<Info>
+  **Still stuck?** Contact the Partner Center support team by email and include your registered email address and a brief description of the issue:
+
+  - **International:** partner@rollinggo.ai
+  - **China Mainland:** partner@rollinggo.cn
+</Info>

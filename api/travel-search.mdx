@@ -1,0 +1,160 @@
+---
+title: "POST /travel/search — Search Flights and Travel Options"
+sidebarTitle: "Travel Search"
+description: "Use POST /travel/search to query flights and travel packages by origin, destination, travel dates, and cabin class. Returns ranked offers with pricing."
+---
+
+The `/travel/search` endpoint queries RollingGo's global inventory to return ranked flight and travel package options for a given route and date range. You submit your origin, destination, and travel dates, and the API responds with a list of available offers — each carrying a unique `offerId` that you pass directly into the booking flow. This endpoint is available to Enterprise and Developer partners.
+
+<Info>
+  **Base URLs**
+  - International: `https://api.rollinggo.ai/v1`
+  - China: `https://api.rollinggo.cn/v1`
+</Info>
+
+## Endpoint
+
+```
+POST https://api.rollinggo.ai/v1/travel/search
+```
+
+## Authentication
+
+Include your API key as a Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer rg_live_xxxxxxxxxxxxxxxxxxxx
+```
+
+## Request Parameters
+
+<ParamField body="origin" type="string" required>
+  IATA airport code for the departure location (e.g., `HKG`, `SIN`, `PEK`).
+</ParamField>
+
+<ParamField body="destination" type="string" required>
+  IATA airport code for the arrival location (e.g., `NRT`, `LHR`, `LAX`).
+</ParamField>
+
+<ParamField body="departDate" type="string" required>
+  Departure date in `YYYY-MM-DD` format.
+</ParamField>
+
+<ParamField body="returnDate" type="string">
+  Return date for round-trip searches, in `YYYY-MM-DD` format. Omit this field for one-way trips.
+</ParamField>
+
+<ParamField body="passengers" type="integer" default="1">
+  Number of passengers travelling. Accepted range is `1`–`9`.
+</ParamField>
+
+<ParamField body="class" type="string" default="economy">
+  Cabin class for the search. Accepted values are `economy`, `business`, and `first`.
+</ParamField>
+
+<ParamField body="currency" type="string">
+  Override the response currency using an [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) code (e.g., `USD`, `EUR`, `HKD`). Defaults to the currency of your account region when omitted.
+</ParamField>
+
+## Example Request
+
+<CodeGroup>
+```json request.json
+{
+  "origin": "HKG",
+  "destination": "NRT",
+  "departDate": "2025-09-01",
+  "returnDate": "2025-09-08",
+  "passengers": 2,
+  "class": "economy"
+}
+```
+</CodeGroup>
+
+## Example Response
+
+<CodeGroup>
+```json response.json
+{
+  "status": "ok",
+  "requestId": "req_7fk2jd",
+  "results": [
+    {
+      "offerId": "offer_cx520_20250901",
+      "carrier": "Cathay Pacific",
+      "flightNumber": "CX520",
+      "origin": "HKG",
+      "destination": "NRT",
+      "departureTime": "2025-09-01T10:30:00+08:00",
+      "arrivalTime": "2025-09-01T15:45:00+09:00",
+      "duration": "PT4H15M",
+      "stops": 0,
+      "price": {
+        "amount": 3200,
+        "currency": "HKD",
+        "perPerson": true
+      },
+      "seatsAvailable": 8
+    }
+  ],
+  "totalResults": 1
+}
+```
+</CodeGroup>
+
+## Response Fields
+
+<ResponseField name="status" type="string">
+  `"ok"` on a successful response.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  A unique identifier for this request. Include this value when contacting support to help debug issues.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  An ordered list of travel offers matching your search criteria, ranked by relevance and price.
+</ResponseField>
+
+<ResponseField name="results[].offerId" type="string">
+  A unique identifier for this offer. Pass this value to `POST /travel/book` to initiate a booking. Offer IDs expire after **15 minutes**.
+</ResponseField>
+
+<ResponseField name="results[].carrier" type="string">
+  The name of the airline or travel provider fulfilling the offer.
+</ResponseField>
+
+<ResponseField name="results[].flightNumber" type="string">
+  The carrier-assigned flight identifier (e.g., `CX520`).
+</ResponseField>
+
+<ResponseField name="results[].price.amount" type="number">
+  The total fare amount per person in the specified currency.
+</ResponseField>
+
+<ResponseField name="results[].price.currency" type="string">
+  The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code for the quoted price.
+</ResponseField>
+
+<ResponseField name="results[].seatsAvailable" type="integer">
+  The number of seats remaining at this price point. Availability can change at any time before booking.
+</ResponseField>
+
+<ResponseField name="totalResults" type="integer">
+  The total count of matching offers returned in this response.
+</ResponseField>
+
+## Error Responses
+
+| HTTP Status | Code | Description |
+|---|---|---|
+| 400 | `invalid_params` | A required field is missing or a value is in an invalid format. |
+| 401 | `unauthorized` | The API key is missing, invalid, or revoked. |
+| 422 | `no_results` | No travel options were found for the given criteria. |
+| 429 | `rate_limited` | You have exceeded your rate limit. Slow down and retry. |
+
+## Next Steps
+
+<Tip>
+  Save the `offerId` from each result — it expires **15 minutes** after the search response. Pass it directly to `POST /travel/book` to initiate a booking before it expires.
+</Tip>

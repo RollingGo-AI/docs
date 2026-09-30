@@ -1,0 +1,142 @@
+---
+title: "Connect RollingGo Travel MCP Skills to Your AI Tools"
+sidebarTitle: "AI Tool Setup"
+description: "How to add RollingGo travel booking skills to popular AI tools like Cursor, Claude Code, OpenClaw, and Feishu Aily using your config package."
+---
+
+As a Personal user, connecting RollingGo to your favourite AI tool takes under two minutes. Your configuration package — delivered to you by email after registration — includes the MCP server URL and everything else your tool needs to discover RollingGo's travel capabilities. There is no static API Key to manage: at runtime your AI tool authenticates you through a short OAuth flow using your phone number or email address.
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- Completed **Personal partner registration** on [rollinggo.ai](https://rollinggo.ai) or [rollinggo.cn](https://rollinggo.cn)
+- Received your **config package email** containing your personal MCP server URL
+
+## How It Works
+
+RollingGo provides a personal MCP server configuration that you paste into your AI tool's settings once. From that point on:
+
+- The AI tool connects to the RollingGo MCP server when you invoke travel tools
+- You authenticate via **OAuth** on first use (and periodically thereafter) — no API Key required
+- The OAuth prompt uses your registered phone number or email address to verify your identity
+
+<Info>
+  OAuth authentication uses your phone number or email address, **not** an API Key. You will be asked to verify your identity on first use and periodically thereafter to keep your session secure.
+</Info>
+
+## Setup by AI Tool
+
+<Tabs>
+  <Tab title="Cursor">
+    <Steps>
+      <Step title="Open MCP Server settings">
+        Launch Cursor and navigate to **Settings** (⌘, on macOS or Ctrl+, on Windows/Linux), then select **MCP Servers** from the left sidebar.
+      </Step>
+
+      <Step title="Add a new server">
+        Click **Add Server** to open the new server dialog.
+      </Step>
+
+      <Step title="Paste your MCP server URL">
+        Copy the URL from your config package email and paste it into the **Server URL** field:
+
+        ```
+        https://mcp.rollinggo.ai/v1/personal
+        ```
+
+        <Note>
+          If you are in mainland China, use the China region URL instead:
+          `https://mcp.rollinggo.cn/v1/personal`
+        </Note>
+      </Step>
+
+      <Step title="Save and restart Cursor">
+        Click **Save**, then fully quit and relaunch Cursor so the new server is loaded.
+      </Step>
+
+      <Step title="Invoke RollingGo in chat">
+        In any Cursor chat window, type `@rollinggo` to see the available travel tools. The first time you use a tool you will be redirected to complete the OAuth sign-in.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Claude Code">
+    <Steps>
+      <Step title="Open your Claude Code config file">
+        Claude Code reads MCP server definitions from `~/.claude/config.json`. Open that file in your editor (create it if it does not exist yet).
+      </Step>
+
+      <Step title="Add the RollingGo server entry">
+        Merge the following block into the `mcpServers` object, using the URL from your config package:
+
+        ```json claude-config.json
+        {
+          "mcpServers": {
+            "rollinggo": {
+              "url": "https://mcp.rollinggo.ai/v1/personal",
+              "auth": "oauth"
+            }
+          }
+        }
+        ```
+
+        <Note>
+          Replace the URL with `https://mcp.rollinggo.cn/v1/personal` if your primary region is mainland China.
+        </Note>
+      </Step>
+
+      <Step title="Restart Claude Code and authenticate">
+        Save the config file and restart Claude Code. On first use of a RollingGo travel tool, you will be prompted to complete an OAuth sign-in in your browser.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="OpenClaw">
+    <Steps>
+      <Step title="Open the Plugins panel">
+        In OpenClaw, navigate to **Plugins** in the left sidebar, then click **Add MCP Plugin**.
+      </Step>
+
+      <Step title="Enter your server URL">
+        Paste the MCP server URL from your config package into the **Server URL** field and confirm.
+      </Step>
+
+      <Step title="Authenticate when prompted">
+        OpenClaw will immediately attempt a connection and open an OAuth prompt. Complete the sign-in with your registered phone number or email to activate the integration.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Feishu Aily">
+    <Steps>
+      <Step title="Open the plugin browser">
+        In **Feishu Aily** (Lark Aily), go to **Plugins** → **Browse** → **Add Custom MCP**.
+      </Step>
+
+      <Step title="Enter your MCP URL">
+        Paste the MCP server URL from your config package into the custom server URL field and confirm.
+      </Step>
+
+      <Step title="Complete OAuth sign-in">
+        Feishu Aily will redirect you to a sign-in page. Authenticate using the phone number or email address you used during Personal registration to complete the setup.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title='"Connection refused" error'>
+    You are likely pointing at the wrong regional endpoint. If you are in mainland China, switch to the `.cn` URL (`https://mcp.rollinggo.cn/v1/personal`). For all other regions, use the `.ai` URL (`https://mcp.rollinggo.ai/v1/personal`). Double-check there are no trailing spaces in the pasted URL.
+  </Accordion>
+
+  <Accordion title='"Authentication failed" error'>
+    Your OAuth session has expired or was never completed. Open your AI tool's MCP server settings, select the RollingGo server, and choose **Re-authenticate** (or equivalent) to restart the OAuth flow. Make sure you complete the sign-in in the same browser window that opens.
+  </Accordion>
+
+  <Accordion title="RollingGo tools not appearing in the AI tool">
+    Most AI tools load MCP server definitions only at startup. After adding or updating the server configuration, fully quit and relaunch the application. If tools still do not appear, verify that the URL in your settings exactly matches the one in your config package email.
+  </Accordion>
+</AccordionGroup>
