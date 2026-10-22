@@ -19,16 +19,16 @@ The RollingGo Hotel Open Platform provides two core integration patterns for par
 
 ### Core Differences Comparison
 
-| Comparison Dimension                | Redirect Mode                                                                                                                        | In-Agent Closed-Loop Mode                                                                                                                 |
-| :---------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Available Tools**           | **3 Tools** (Search tags, hotel search, hotel details)                                                                         | **9 Tools** (From search, price locking, booking, payment, to post-sales cancellation)                                              |
-| **Agent Core Role**           | Search & recommendation only; pushes booking link cards                                                                              | Guides users through "Search → Details → Lock → Book → Pay → Order Query → Safe Cancellation" full flow                             |
-| **Booking & Payment Surface** | User clicks and redirects to**RollingGo H5 / WeChat Mini Program** to complete order                                           | Order created within Agent chat; user clicks**Cashier `paymentUrl`** to pay                                                       |
-| **Price Lock Capability**     | ❌ No price locking                                                                                                                  | ✅ Supported via`hotelPriceConfirm` (30-minute lock) with guest profile prefill                                                         |
-| **Order Management**          | User checks orders via OpenAPI / Mini Program / H5                                                                                   | ✅ Supported via`searchHotelOrders` (summary list) & `getHotelOrderDetail` (structured vouchers)                                      |
-| **Cancellation Capability**   | ❌ User handles cancellation via Mini Program / H5                                                                                   | ✅**Supported via Two-Phase Safe Cancellation** (`preCancelHotelBooking` penalty quote + `confirmCancelHotelBooking` execution) |
-| **Integration Cost**          | Minimal                                                                                                                              | Standard                                                                                                                                  |
-| **Recommended Scenarios**     | • Info search / price comparison aggregators• Lightweight routing & referral plugins• Non-transactional conversational assistants | • Commercial AI travel assistants• Brand official conversational booking apps• High-conversion transactional agents                    |
+| Comparison Dimension | Redirect Mode | In-Agent Closed-Loop Mode |
+| :--- | :--- | :--- |
+| **Available Tools** | **3 Tools** (Search tags, hotel search, hotel details) | **9 Tools** (From search, price locking, booking, payment, to post-sales cancellation) |
+| **Agent Core Role** | Search & recommendation only; pushes booking link cards | Guides users through "Search → Details → Lock → Book → Pay → Order Query → Safe Cancellation" full flow |
+| **Booking & Payment Surface** | User clicks and redirects to **RollingGo H5 / WeChat Mini Program** to complete order | Order created within Agent chat; user clicks **Cashier `paymentUrl`** to pay |
+| **Price Lock Capability** | ❌ No price locking | ✅ Supported via `hotelPriceConfirm` (30-minute lock) with guest profile prefill |
+| **Order Management** | User checks orders via OpenAPI / Mini Program / H5 | ✅ Supported via `searchHotelOrders` (summary list) & `getHotelOrderDetail` (structured vouchers) |
+| **Cancellation Capability** | ❌ User handles cancellation via Mini Program / H5 | ✅ **Supported via Two-Phase Safe Cancellation** (`preCancelHotelBooking` penalty quote + `confirmCancelHotelBooking` execution) |
+| **Integration Cost** | Minimal | Standard |
+| **Recommended Scenarios** | • Info search / price comparison aggregators<br />• Lightweight routing & referral plugins<br />• Non-transactional conversational assistants | • Commercial AI travel assistants<br />• Brand official conversational booking apps<br />• High-conversion transactional agents |
 
 ---
 
@@ -175,25 +175,14 @@ Partners can obtain access credentials through the following two channels:
 
 ## 1.5 Service Nodes & Integration Endpoints
 
-Service endpoint URLs are segregated by environment and authentication mode:
+RollingGo provides dual service nodes for users in Mainland China and globally. The endpoint URLs are as follows:
 
-### Staging Environment (Testing & Development)
-
-| Service Node                  | Auth Mode                | Endpoint URL                                                     | Default Language & Currency         |
-| :---------------------------- | :----------------------- | :--------------------------------------------------------------- | :---------------------------------- |
-| **China Staging Node**  | **API Key Mode**   | `https://mcp-test.rollinggo.cn/mcp`                            | Chinese (`zh-CN`) / CNY (`CNY`) |
-|                               | **OAuth 2.0 Mode** | `https://mcp-test.rollinggo.cn/mcp/hotel` | Chinese (`zh-CN`) / CNY (`CNY`) |
-| **Global Staging Node** | **API Key Mode**   | `https://mcp-test.rollinggo.ai/mcp`                            | English (`en`) / USD (`USD`)    |
-|                               | **OAuth 2.0 Mode** | `https://mcp-test.rollinggo.ai/mcp/hotel` | English (`en`) / USD (`USD`)    |
-
-### Production Environment (Active Commercial Service)
-
-| Service Node                     | Auth Mode                | Endpoint URL                           | Default Language & Currency         | Core Characteristics                                                                         |
-| :------------------------------- | :----------------------- | :------------------------------------- | :---------------------------------- | :------------------------------------------------------------------------------------------- |
-| **China Production Node**  | **API Key Mode**   | `https://mcp.rollinggo.cn/mcp`       | Chinese (`zh-CN`) / CNY (`CNY`) | Fixed Chinese & CNY;`placeType` uses Chinese enums; email is required                      |
-|                                  | **OAuth 2.0 Mode** | `https://mcp.rollinggo.cn/mcp/hotel` | Chinese (`zh-CN`) / CNY (`CNY`) | User-bound token; natural cross-tenant isolation                                             |
-| **Global Production Node** | **API Key Mode**   | `https://mcp.rollinggo.ai/mcp`       | English (`en`) / USD (`USD`)    | Supports`localeParam: { currency, language }` (25 currencies / EN, ZH, JA); email optional |
-|                                  | **OAuth 2.0 Mode** | `https://mcp.rollinggo.ai/mcp/hotel` | English (`en`) / USD (`USD`)    | Global end-user OAuth login system                                                           |
+| Service Node | Auth Mode | Endpoint URL | Default Language & Currency | Core Characteristics |
+| :--- | :--- | :--- | :--- | :--- |
+| **China Production Node** | **API Key Mode** | `https://mcp.rollinggo.cn/mcp` | Chinese (`zh-CN`) / CNY (`CNY`) | Fixed Chinese & CNY; `placeType` uses Chinese enums; email is required |
+| **China Production Node** | **OAuth 2.0 Mode** | `https://mcp.rollinggo.cn/mcp/hotel` | Chinese (`zh-CN`) / CNY (`CNY`) | User-bound token; natural cross-tenant isolation |
+| **Global Production Node** | **API Key Mode** | `https://mcp.rollinggo.ai/mcp` | English (`en`) / USD (`USD`) | Supports `localeParam: { currency, language }` (25 currencies / EN, ZH, JA); email optional |
+| **Global Production Node** | **OAuth 2.0 Mode** | `https://mcp.rollinggo.ai/mcp/hotel` | English (`en`) / USD (`USD`) | Global end-user OAuth login system |
 
 ---
 
