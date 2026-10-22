@@ -73,7 +73,20 @@
               }
             ]
           }
-        ]
+        ],
+        "navbar": {
+          "links": [
+            {
+              "label": "Support",
+              "href": "mailto:partner@rollinggo.ai"
+            }
+          ],
+          "primary": {
+            "type": "button",
+            "href": "https://partner.rollinggo.ai",
+            "label": "Get Started"
+          }
+        }
       },
       {
         "language": "zh",
@@ -121,7 +134,20 @@
               }
             ]
           }
-        ]
+        ],
+        "navbar": {
+          "links": [
+            {
+              "label": "联系我们",
+              "href": "mailto:partner@rollinggo.ai"
+            }
+          ],
+          "primary": {
+            "type": "button",
+            "href": "https://partner.rollinggo.ai",
+            "label": "申请入驻"
+          }
+        }
       }
     ]
   },
