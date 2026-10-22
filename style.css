@@ -5,3 +5,21 @@
 #content-area {
   max-width: var(--content-width) !important;
 }
+
+/* 移除最下方技术支持入口 (Powered by Mintlify) */
+a[href*="utm_campaign=poweredBy"] {
+  display: none !important;
+}
+
+/* 中文页面最下方不展示 X 图标及底部栏 */
+html[lang="zh"] footer#footer,
+html[lang^="zh"] footer#footer,
+[data-page-href^="/zh/"] ~ * footer#footer,
+[data-page-href^="/zh/"] ~ footer#footer {
+  display: none !important;
+}
+
+html[lang="zh"] a[href*="x.com"],
+html[lang^="zh"] a[href*="x.com"] {
+  display: none !important;
+}
