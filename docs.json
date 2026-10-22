@@ -15,6 +15,10 @@
   "navbar": {
     "links": [
       {
+        "label": "Home",
+        "href": "https://global.rollinggo.store"
+      },
+      {
         "label": "Support",
         "href": "mailto:partner@rollinggo.ai"
       }
@@ -77,6 +81,10 @@
         "navbar": {
           "links": [
             {
+              "label": "Home",
+              "href": "https://global.rollinggo.store"
+            },
+            {
               "label": "Support",
               "href": "mailto:partner@rollinggo.ai"
             }
@@ -137,6 +145,10 @@
         ],
         "navbar": {
           "links": [
+            {
+              "label": "官网",
+              "href": "https://rollinggo.store"
+            },
             {
               "label": "联系我们",
               "href": "mailto:partner@rollinggo.cn"
