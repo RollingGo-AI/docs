@@ -159,15 +159,8 @@
   "contextual": {
     "options": [
       "copy",
-      "download-pdf",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "vscode",
-      "cursor",
-      "devin-mcp"
+      "download-pdf"
     ],
-    "display": "toc"
+    "display": "header"
   }
 }
