@@ -1,0 +1,141 @@
+---
+title: "RollingGo Hotel MCP FAQ"
+sidebarTitle: "FAQ"
+description: "Frequently asked questions about API Keys, authentication, client setup, hotel search, rates, and troubleshooting."
+---
+
+# RollingGo Hotel MCP FAQ
+
+Frequently asked questions about API Key application, authentication, client configuration, hotel search & quotes, bookings & transactions, billing & commissions, and troubleshooting.
+
+---
+
+## 1. Application & API Key
+
+### 1.1 Is RollingGo Hotel MCP free of charge?
+Yes, it is completely free with no rate limits. Both enterprise and individual developers can apply.
+
+### 1.2 How do I apply for an API Key? How long does approval take?
+Visit the [Application Portal](https://rollinggo.store/apply) and fill out the basic information. System automated approval takes only 1-3 minutes, and Partner account details are automatically sent to your email.
+
+### 1.3 What is the API Key format? Why does it start with `mcp_`?
+Keys follow the format `mcp_xxxxxxxxxxxxxxxxxxxxxxxx`. All requests must carry `Authorization: Bearer YOUR_API_KEY` (or `X-Secret-Key`). Missing, whitespace-padded, or keys lacking the `mcp_` prefix will be rejected.
+
+### 1.4 Why do I need to specify my intended use case during registration?
+Hotel rates, inventory, and bookings involve real commercial transactions. Assigning individual keys helps prevent abusive traffic, maintains API stability, and ensures our support team can reach you if rate anomalies occur.
+
+### 1.5 What if my API Key is compromised?
+Immediately reset your key in the Partner Center dashboard or contact `contact@rollinggo.ai` to revoke and replace it. Never commit keys to public Git repositories or paste them in issue trackers. Always manage credentials via environment variables.
+
+---
+
+## 2. Integration & Configuration
+
+### 2.1 Which MCP clients are supported? Where can I view configs?
+All mainstream MCP clients are supported. On the [Hotel MCP Product Page](https://rollinggo.store/solutions/hotel), click any client icon to copy its `.mcp.json`, CLI command, or TOML config. Supported tools include Cursor, Windsurf, Copilot, Kiro, Codex, OpenCode, Trae, Manus, Qoder, and Claude Code.
+
+### 2.2 Client Configuration Examples
+
+#### Claude Code (Terminal)
+```bash
+claude mcp add RollingGo-Hotel \
+  --transport http \
+  --header "Authorization: Bearer YOUR_API_KEY" \
+  https://mcp.rollinggo.cn/mcp
+```
+
+#### Cursor / Windsurf / Trae (`.cursor/mcp.json`)
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+#### Codex (`.codex/config.toml`)
+```toml
+[mcp_servers.RollingGo-Hotel]
+url = "https://mcp.rollinggo.cn/mcp"
+http_headers = { "Authorization" = "Bearer YOUR_API_KEY" }
+```
+
+#### Cherry Studio
+In Cherry Studio, open **Settings → MCP Servers → Add**, choose type **HTTP** with URL `https://mcp.rollinggo.cn/mcp`, and configure Bearer auth with your Key.
+
+#### Cline (VS Code Extension)
+In VS Code user `settings.json`, add:
+```json
+{
+  "cline.mcp.servers": [
+    {
+      "name": "RollingGo-Hotel",
+      "type": "http",
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": { "Authorization": "Bearer YOUR_API_KEY" },
+      "enabled": true
+    }
+  ]
+}
+```
+
+### 2.3 What if tools do not appear in the client?
+1. Verify that `type` is set to `streamable-http` (`http` for Claude CLI).
+2. Ensure the API Key is in the Headers rather than URL or body, without leading/trailing whitespace.
+3. Restart the client or click **Refresh MCP Servers**.
+4. Test connectivity with cURL against `tools/list` to rule out network or proxy issues.
+
+---
+
+## 3. Search & Hotel Data
+
+### 3.1 Do `place` and `placeType` have to match?
+Yes. For example, `place: "The Bund, Shanghai"` must be paired with `placeType: "Scenic Spot"`. Setting it to `City` will return hotels across the entire city of Shanghai rather than near the Bund. Supported types include City, Scenic Spot, Airport, Railway Station, Subway Station, District, and Detailed Address.
+
+### 3.2 Are returned prices final transaction prices?
+`searchHotels` returns reference showcase rates for initial filtering. Once a hotel is selected, call `getHotelDetail` for real-time room types and prices, and call `hotelPriceConfirm` prior to booking to lock the final rate and prevent price drift.
+
+### 3.3 Is the data scraped from web pages?
+No. RollingGo Hotel MCP covers 2M+ hotels, 110K+ direct-contracted hotels, and 500+ global suppliers. Prices and availability are connected directly to official supplier distribution systems.
+
+### 3.4 How do hotel tags work?
+Call `getHotelSearchTags` to retrieve the available tag dictionary, then pass desired tags into `hotelTags.preferredTags`, `requiredTags`, or `excludedTags`.
+
+---
+
+## 4. Booking & Transactions
+
+### 4.1 Can payments be made directly in chat via API Key?
+The API Key tier provides queries and web-based checkout. For a complete in-agent closed-loop experience ("Search → Lock Room → Pay → Query Order"), use OAuth 2.0 authorization code mode and contact `contact@rollinggo.ai`.
+
+### 4.2 Why do prices or availability occasionally fluctuate?
+Prices and inventory are real-time. During peak hours or cache windows, reference rates may adjust. Best practice is caching gracefully and verifying before booking.
+
+---
+
+## 5. Billing & Commissions
+
+### 5.1 Are there any call limits?
+There are currently no rate limits or call caps. The service is completely free.
+
+### 5.2 How do Partners earn commissions?
+Each Key links to a Partner account. You can set markup percentages by country/region in the Partner Center. When users book through your Key or link, markups become your commission, viewable and withdrawable at any time.
+
+---
+
+## 6. Common Error Troubleshooting
+
+### 6.1 cURL returns 400 Bad Request?
+You must include the `Accept` header: `-H "Accept: application/json, text/event-stream"`.
+
+### 6.2 401 Unauthorized?
+Check that the Key starts with `mcp_`, has no extra whitespace, and is passed in `Authorization: Bearer YOUR_API_KEY`.
+
+### 6.3 Overseas hotels show wrong language or currency?
+Pass `localeParam` (e.g. `en`, `ja`) and `countryCode` (e.g. `US`, `JP`).

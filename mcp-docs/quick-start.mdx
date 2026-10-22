@@ -1,0 +1,157 @@
+---
+title: "Quick Start — RollingGo Hotel MCP"
+sidebarTitle: "Quick Start"
+description: "5-minute guide to connect to RollingGo Hotel MCP and start querying hotel search and real-time room rates."
+---
+
+> **Audience:** Third-party developers, AI Agent builders, MCP client users  
+> **Goal:** Complete your first RollingGo [Model Context Protocol (MCP)](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro) integration within 5 minutes and unlock global hotel search & booking capabilities.
+
+---
+
+## ⚡ 30-Second Overview
+
+RollingGo provides two types of [Model Context Protocol (MCP)](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro) services:
+
+| Service | Endpoint | Available Tools | Status | Auth Method |
+| :--- | :--- | :---: | :---: | :--- |
+| **Hotel MCP** | `https://mcp.rollinggo.cn/mcp` | `searchHotels` / `getHotelDetail` / `getHotelSearchTags` (3 total) | ✅ **Active** | `Authorization: Bearer YOUR_API_KEY` |
+| **Flight MCP** | `https://mcp.rollinggo.cn/mcp/flight` | `searchAirports` / `searchFlights` (2 total) | ⚠️ **Maintenance** | `Authorization: Bearer YOUR_API_KEY` |
+
+> ⚠️ **Notice**: Flight MCP is currently offline for maintenance. Please use the primary Hotel MCP service.
+
+**Transport Protocol:** `streamable-http` / `http`
+
+---
+
+## 🚀 Quick Start Steps
+
+### Step 1: Register and Select Identity
+
+1. Visit [https://rollinggo.store/apply](https://rollinggo.store/apply)
+2. Choose one of the **Four Business Personas**:
+   * **Developer**: Building agents or travel apps, connecting to MCP services (Recommended for developers)
+   * **Enterprise**: Business entity applying for employee travel or external client integrations
+   * **Personal**: Instant zero-account experience for personal AI tools (OpenClaw / Claude Code / Codex / Cursor / WorkBuddy)
+   * **KOL / Affiliate**: Traffic promotion via branded H5 and mini-programs
+3. Select your service region:
+   * **China Mainland**: Binds to `rollinggo.cn` node and CNY billing
+   * **International / HK / Macau / Taiwan**: Binds to `rollinggo.ai` node and USD billing
+
+---
+
+### Step 2: Obtain Your API Key
+
+1. **Instant Approval**: Partner 2.0 features fully automated instant approval with zero manual review.
+2. **Immediate Screen Delivery**: Upon submission, your 32-character API Key (`mcp_xxxxx...`) is displayed directly on screen.
+3. **Save Your Key**: Save your API Key securely. All subsequent MCP requests require this key in the Authorization header.
+
+---
+
+### Step 3: Connect to AI Agent Clients
+
+#### 1. Claude CLI / Claude Desktop
+
+In your project root, create `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Or via CLI command:
+
+```bash
+claude mcp add \
+  --transport http \
+  --header "Authorization: Bearer YOUR_API_KEY" \
+  RollingGo-Hotel \
+  https://mcp.rollinggo.cn/mcp
+```
+
+#### 2. Cursor / Windsurf / Trae
+
+In project root `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+#### 3. Codex
+
+Configuration file: `~/.codex/config.json` or `.codex/config.json`:
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+---
+
+### Step 4: Verification via cURL
+
+```bash
+curl -X POST https://mcp.rollinggo.cn/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "searchHotels",
+      "arguments": {
+        "place": "The Bund, Shanghai",
+        "placeType": "Scenic Spot",
+        "checkInDate": "2026-11-01",
+        "checkOutDate": "2026-11-03",
+        "queryFilter": {
+          "starRatings": [5.0]
+        },
+        "size": 3
+      }
+    },
+    "id": 1
+  }'
+```
+
+---
+
+## 📋 Access Summary
+
+| Item | Description |
+| :--- | :--- |
+| **Registration Required?** | Yes — free registration via Partner 2.0 |
+| **Authentication** | Unified Header: `Authorization: Bearer YOUR_API_KEY` |
+| **Rate Limits** | Unlimited |
+| **Cost** | Completely Free |
+| **Approval Time** | Instant automated approval (0 wait) |
+| **Coverage** | 2M+ hotels globally |

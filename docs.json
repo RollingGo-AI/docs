@@ -37,63 +37,38 @@
             "tab": "Documentation",
             "groups": [
               {
-                "group": "Get Started",
+                "group": "MCP Integration Guide",
                 "pages": [
-                  "introduction",
-                  "quickstart",
-                  "regional-setup"
+                  "mcp-docs/quick-start",
+                  "mcp-docs/mcp-tool-reference",
+                  "mcp-docs/oauthdoc"
                 ]
               },
               {
-                "group": "Partner Types",
+                "group": "Monetization & Partners",
                 "pages": [
-                  "partners/enterprise",
-                  "partners/developer",
-                  "partners/kol",
-                  "partners/personal"
+                  "partnerdoc/kol",
+                  "partnerdoc/partner1"
                 ]
               },
               {
-                "group": "Credentials & Access",
+                "group": "FAQ",
                 "pages": [
-                  "credentials/api-keys",
-                  "credentials/distribution-links",
-                  "credentials/account-activation"
+                  "faq/faq"
                 ]
               },
               {
-                "group": "Guides",
+                "group": "Client Config & Auth",
                 "pages": [
-                  "guides/mcp-integration",
-                  "guides/ai-tool-setup",
-                  "guides/affiliate-monetization"
+                  "developer-insights/mcp-client-config",
+                  "developer-insights/developer-insights-mcp-auth-comparison"
                 ]
               },
               {
-                "group": "Support",
+                "group": "Changelog & Updates",
                 "pages": [
-                  "support/faq",
-                  "support/troubleshooting"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "API Reference",
-            "groups": [
-              {
-                "group": "Overview",
-                "pages": [
-                  "api/overview",
-                  "api/authentication"
-                ]
-              },
-              {
-                "group": "MCP Endpoints",
-                "pages": [
-                  "api/travel-search",
-                  "api/booking",
-                  "api/webhooks"
+                  "update/update",
+                  "update/update2"
                 ]
               }
             ]
@@ -107,64 +82,38 @@
             "tab": "使用文档",
             "groups": [
               {
-                "group": "快速入门",
+                "group": "MCP 接入指南",
                 "pages": [
-                  "zh/index",
-                  "zh/introduction",
-                  "zh/quickstart",
-                  "zh/regional-setup"
+                  "zh/mcp-docs/quick-start",
+                  "zh/mcp-docs/mcp-tool-reference",
+                  "zh/mcp-docs/oauthdoc"
                 ]
               },
               {
-                "group": "合作身份",
+                "group": "变现与合作指南",
                 "pages": [
-                  "zh/partners/enterprise",
-                  "zh/partners/developer",
-                  "zh/partners/kol",
-                  "zh/partners/personal"
+                  "zh/partnerdoc/kol",
+                  "zh/partnerdoc/partner1"
                 ]
               },
               {
-                "group": "凭证与接入",
+                "group": "常见问题解答 (FAQ)",
                 "pages": [
-                  "zh/credentials/api-keys",
-                  "zh/credentials/distribution-links",
-                  "zh/credentials/account-activation"
+                  "zh/faq/faq"
                 ]
               },
               {
-                "group": "进阶指南",
+                "group": "客户端接入与比较",
                 "pages": [
-                  "zh/guides/mcp-integration",
-                  "zh/guides/ai-tool-setup",
-                  "zh/guides/affiliate-monetization"
+                  "zh/developer-insights/mcp-client-config",
+                  "zh/developer-insights/developer-insights-mcp-auth-comparison"
                 ]
               },
               {
-                "group": "帮助与支持",
+                "group": "版本更新日志",
                 "pages": [
-                  "zh/support/faq",
-                  "zh/support/troubleshooting"
-                ]
-              }
-            ]
-          },
-          {
-            "tab": "API 参考",
-            "groups": [
-              {
-                "group": "概览",
-                "pages": [
-                  "zh/api/overview",
-                  "zh/api/authentication"
-                ]
-              },
-              {
-                "group": "MCP 接口",
-                "pages": [
-                  "zh/api/travel-search",
-                  "zh/api/booking",
-                  "zh/api/webhooks"
+                  "zh/update/update",
+                  "zh/update/update2"
                 ]
               }
             ]

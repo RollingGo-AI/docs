@@ -1,0 +1,38 @@
+---
+title: "MCP Integration: API Key vs. OAuth 2.0 Authorization Code"
+sidebarTitle: "API Key vs. OAuth 2.0"
+---
+
+# RollingGo MCP Integration Methods
+
+RollingGo MCP provides two integration modes to meet the needs of different business scenarios and project stages:
+
+- **API Key Quick Integration**: Uses simple Bearer Token authentication and provides 3 core tools. The Agent returns a booking URL, and the user completes checkout on RollingGo H5 or Mini Program. Ideal for content recommendation, fast prototyping, and lightweight integrations.
+- **OAuth 2.0 Authorization Code**: Uses standard OAuth 2.0 with PKCE and provides a full 7-tool transaction suite. The Agent independently handles price confirmation, booking creation, payment link generation, and order management within conversation.
+
+---
+
+## 📊 Feature Comparison
+
+| Dimension | API Key Quick Integration | OAuth 2.0 Authorization Code |
+| :--- | :--- | :--- |
+| **Auth Method** | `Authorization: Bearer <API_KEY>` | Standard OAuth 2.0 Access Token (JWT) |
+| **Setup Complexity** | Zero configuration; instant automated approval | Requires OAuth client registration, redirect handling, and Token exchange |
+| **Number of Tools** | 3 tools (`searchHotels`, `getHotelDetail`, `getHotelSearchTags`) | 7 tools (Search + Price Lock + Booking Creation + Order List & Detail) |
+| **Checkout Flow** | User redirects to H5 / Mini Program via `bookingUrl` | Agent obtains `paymentUrl` and delivers direct checkout |
+| **Order Management** | User checks orders on web portal | Agent queries orders via `searchHotelOrders` / `getHotelOrderDetail` |
+| **Best For** | Developers, content creators, quick agent tools | Enterprise platforms, full-service concierge agents |
+
+---
+
+## 🚀 When to Choose Which Mode
+
+### Choose API Key Quick Integration If:
+- You want to get started within 5 minutes without backend development.
+- Your application only needs hotel search, price comparison, or recommendation cards.
+- You prefer RollingGo to handle user identity, payments, customer service, and order tracking.
+
+### Choose OAuth 2.0 Authorization Code If:
+- You want a seamless end-to-end booking experience entirely within your Agent conversation.
+- You need to access user order history and provide automated check-in and cancellation assistance.
+- You are building an enterprise travel concierge or proprietary travel app.

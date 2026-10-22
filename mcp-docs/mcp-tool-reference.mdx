@@ -1,0 +1,154 @@
+---
+title: "MCP Tool Reference Documentation"
+sidebarTitle: "MCP Tool Reference"
+---
+
+# RollingGo MCP Tool Reference Documentation
+
+> **Audience:** Third-party AI Agent developers, system integration architects, and MCP client users  
+> **Objective:** Provide detailed specifications for the API parameters, response structures, and evolution differences between the initial version (APIKEY authentication) and the full transaction closed-loop version (OAUTH authentication) of the RollingGo MCP service.
+
+---
+
+## 📌 I. Core Differences Between Initial Version and Full Transaction Closed-Loop Version
+
+The evolution of RollingGo MCP focuses on transitioning from **“single-purpose information retrieval”** to a **“complete transaction loop from search to online booking and fulfillment.”**
+
+### 1. Core Capability Comparison
+
+| Comparison Dimension | Initial Version (APIKEY Authentication) | Full Transaction Closed-Loop Version (OAUTH Authentication) |
+| :--- | :--- | :--- |
+| **Positioning & Capabilities** | Information retrieval and presentation (search / room details / tags) | Full transaction loop (search → detailed inquiry → price confirmation → order creation & payment → order fulfillment) |
+| **Number of Hotel Tools** | **3 tools** (`searchHotels`, `getHotelDetail`, `getHotelSearchTags`) | **7 tools** (adds price confirmation, order creation & payment, order list, and order details) |
+| **Flight Tool Status** | 2 tools (`searchAirports`, `searchFlights`) | ⚠️ Flight business has been suspended and is under maintenance; focus is now on the hotel transaction loop |
+| **Transaction & Booking Capabilities** | ⚠️ Agent cannot create orders; returns `bookingUrl` for users to complete booking themselves | ✅ Supports online booking and payment (30-minute price lock, with `paymentUrl` checkout link) |
+| **Order Management Capabilities** | ⚠️ No order management APIs; users can check orders on the booking page | ✅ Provides lightweight order lists via `searchHotelOrders` and full order details via `getHotelOrderDetail` |
+
+---
+
+### 2. Call Flow Comparison
+
+#### Simplified Search Flow (Initial Version)
+```css
+[User Query] ➔ getHotelSearchTags (Optional) ➔ searchHotels (Initial Screening) ➔ getHotelDetail (Display Room Types / Prices) ➔ Return bookingUrl, user completes booking on H5 / Mini Program
+```
+
+#### Full Booking & Fulfillment Flow (Full Transaction Closed-Loop Version)
+```scss
+[1. Initial Search]  getHotelSearchTags ➔ searchHotels ➔ getHotelDetail
+                                                            │
+[2. Price Lock & Booking]  createHotelBookingWithPaymentURL ⬅️ hotelPriceConfirm
+                     │ (Obtain paymentUrl checkout page)
+                     ▼
+[3. Order Fulfillment]  searchHotelOrders (Summary List) ➔ getHotelOrderDetail (Order Details)
+```
+
+---
+
+## 🔍 II. Initial Version API Specification (APIKEY Authentication)
+
+The initial version is suitable for Agent scenarios that only need to display hotel information and delegate the booking action to the user: the Agent does not create orders but returns a `bookingUrl` for the user to open the H5 / Mini Program and complete the booking themselves.
+
+> **Note:** The three tools in this section (`searchHotels`, `getHotelDetail`, `getHotelSearchTags`) are **shared** by both the initial version and the full transaction closed-loop version. Field definitions are based on the current production version.
+
+### 1. `searchHotels` — Search Global Hotels
+
+Search for hotels by location, dates, star rating, and tags, returning a list of candidate hotels and the estimated lowest reference price for the first night.
+
+* **Key Input Parameters**:
+  * `originQuery` (string, required): The complete accommodation intent extracted from the multi-turn conversation (e.g., “5-star hotels near the Bund in Shanghai”)
+  * `place` (string, required): Target search location name (e.g., “The Bund, Shanghai”)
+  * `placeType` (string, required): Location type enum (`City` / `Attraction` / `Airport` / `Train Station` / `Subway Station` / `Hotel` / `District/County` / `Detailed Address`)
+  * `checkInParam` (object): Check-in information package
+    * `checkInParam.checkInDate` (string): Check-in date `YYYY-MM-DD` (default: tomorrow)
+    * `checkInParam.stayNights` (integer): Number of nights (range 1~28, default `1`)
+    * `checkInParam.adultCount` (integer): Number of adults per room (default `2`)
+  * `countryCode` (string): Two-letter country code (ISO 3166-1, e.g., `CN`, `JP`)
+  * `filterOptions` (object): Geographic parsing and star-rating filters
+    * `filterOptions.distanceInMeter` (integer): Straight-line distance limit in meters (default `2000`, applies to attractions / airports)
+    * `filterOptions.starRatings` (float[]): Star-rating range, e.g., `[4.0, 5.0]`
+  * `hotelTags` (object): Advanced tags, brand, and budget filters
+    * `hotelTags.requiredTags` (string[]): Mandatory tags that must be satisfied
+    * `hotelTags.preferredBrands` (string[]): Preferred brand list
+    * `hotelTags.maxPricePerNight` (float): Maximum budget per night
+  * `size` (integer): Number of results to return (default `5`, maximum 20)
+
+---
+
+### 2. `getHotelDetail` — Query Room Types & Prices
+
+Retrieve detailed room types and pricing for a specified stay period based on the hotel ID (or hotel name).
+
+* **Key Input Parameters**:
+  * `hotelId` (integer, mutually exclusive with `name`, preferred): Unique hotel ID
+  * `name` (string, mutually exclusive with `hotelId`): Hotel name (fuzzy search)
+  * `dateParam` (object): `checkInDate` / `checkOutDate` (`YYYY-MM-DD`; check-out date must be later than check-in date)
+  * `occupancyParam` (object): `roomCount` (default 1) / `adultCount` (default 2) / `childCount` (default 0) / `childAgeDetails` (array of child ages, must match `childCount`)
+  * `localeParam` (object): `countryCode` (default CN) / `currency` (default CNY)
+
+---
+
+### 3. `getHotelSearchTags` — Get Search Tags (General)
+
+Retrieve the currently enabled hotel filter tags, such as “Breakfast Included,” “Sea View Room,” and “Swimming Pool.”
+
+* **Output Response Characteristics**: Returns `success` + `tags[]` (containing `name` and `category` classifications) + `usageGuide` (LLM guidance text and example request JSON for combining tags).
+
+---
+
+### 4. Flight APIs (⚠️ Currently Offline for Maintenance)
+
+* `searchAirports`: Input a city / airport keyword to obtain the three-letter airport code (e.g., `HGH`).
+* `searchFlights`: Use three-letter airport codes to query one-way / round-trip flight lists.
+
+---
+
+## 🛒 III. Full Transaction Closed-Loop Version API Specification (OAUTH Authentication)
+
+The full transaction closed-loop version upgrades to a **7-tool architecture**, enabling the complete workflow from price locking to payment-link generation and post-booking order management.
+
+### 1. `getHotelSearchTags` — Get Search Tags
+Same as the initial version. Returns all currently enabled system tags and LLM guidance text for tag combinations.
+
+### 2. `searchHotels` — Search Global Hotels
+Same as the initial version. See Section II for detailed input parameters and response structures.
+
+### 3. `getHotelDetail` — Retrieve Detailed Room Types & Packages
+Same as the initial version. Directly returns the `ratePlanId` required for the next price-lock step.
+
+### 4. `hotelPriceConfirm` — Price Confirmation & Price Lock
+* **Function**: Lock the real-time final price for the selected room type and generate a booking reference credential `referenceNo`. The price lock remains valid for 30 minutes.
+* **Key Input Parameters**:
+  * `hotelID` (integer, required): Hotel ID
+  * `ratePlanID` (string, required): Plan ID returned by `getHotelDetail`
+  * `numOfRooms` (integer, required): Number of rooms to book (default `1`)
+  * `dateParam` (object, required): `checkInDate` / `checkOutDate` (`YYYY-MM-DD`)
+  * `occupancyDetails` (array, required): Guest composition per room; the number of items must match `numOfRooms`
+
+### 5. `createHotelBookingWithPaymentURL` — Create Order & Obtain Checkout URL
+* **Function**: Submit guest names in Pinyin and contact information, create a system order (`orderNo`), and issue a checkout URL `paymentUrl`.
+* **Key Input Parameters**:
+  * `referenceNo` (string, required): The still-valid price-lock reference returned by `hotelPriceConfirm`
+  * `contact` (object, required): Contact information (`firstName`, `lastName`, `email`, `phone`)
+  * `guestList` (array, required): Guest list with length matching the number of rooms booked
+
+### 6. `searchHotelOrders` — Search Hotel Order List
+* **Function**: Retrieve a lightweight list of hotel orders associated with the current account.
+* **Key Input Parameters**:
+  * `status` (string): Order status filter (`ALL` / `PENDING` / `FINISHED`, default `ALL`)
+  * `dateRange` (object): Order creation time range (`startDate`, `endDate`)
+
+### 7. `getHotelOrderDetail` — Retrieve Full Order Details
+* **Function**: Retrieve complete structured details of a single order based on the order number (`orderNo`).
+
+---
+
+## 🔄 IV. Version Selection Recommendations
+
+1. **Default: Integrate the Initial Version (APIKEY Authentication)**:
+   * Recommended for most agent and tool integrations. The agent returns a `bookingUrl` where the user completes checkout on RollingGo H5 / Mini Program.
+   * Zero friction, low integration effort, go live in minutes.
+
+2. **Integrate Full Transaction Closed-Loop Version (OAUTH Authentication)**:
+   * Designed for agents that need to independently manage the full booking lifecycle within conversation without external redirects.
+   * Requires enterprise agreement: **Business Cooperation** [contact@rollinggo.ai](mailto:contact@rollinggo.ai).

@@ -1,0 +1,114 @@
+---
+title: "OAuth Integration Documentation"
+sidebarTitle: "OAuth Integration"
+---
+
+# RollingGo OAuth 2.0 Authorization Service Documentation
+
+Welcome to the RollingGo OAuth 2.0 Authorization Service! This document is designed to help third-party developers integrate RollingGo account login into their applications. We support the standard **OAuth 2.0 Authorization Code Grant**, and recommend that clients (especially public clients such as mobile applications, desktop applications, SPAs, etc.) use the **PKCE (Proof Key for Code Exchange)** security extension.
+
+RollingGo provides two service nodes. The integration process and parameters are exactly the same; only the endpoint domains are different. Please select the appropriate node based on your target users:
+
+| Service Node | Applicable Users | API Domain | MCP Host |
+| :--- | :--- | :--- | :--- |
+| **Mainland China** | Users in Mainland China | `api.rollinggo.cn` | `mcp.rollinggo.cn` |
+| **Overseas & Hong Kong/Macau/Taiwan** | Users outside Mainland China | `api.rollinggo.ai` | `mcp.rollinggo.ai` |
+
+> MCP Host is the host of the RollingGo MCP (Model Context Protocol) service. It allows AI applications (such as agents and LLM clients) to connect to RollingGo's hotel capabilities through the standard MCP protocol. The connection URL is `https://MCP_HOST/mcp/hotel`.
+
+---
+
+## 🚀 Authorization Integration Flow
+
+The integration process mainly consists of three steps:
+1. Guide the user to the authorization page and obtain an authorization code (`code`).
+2. Receive the redirect and obtain the authorization code (`code`).
+3. Exchange the authorization code (`code`) for an access token (`access_token`).
+
+### Step 1: Request Authorization
+
+Your application needs to redirect the user to the RollingGo authorization endpoint.
+
+**Request Method**: `GET`
+
+**Request URL**:
+- **Mainland China**: `https://api.rollinggo.cn/oauth2/authorize`
+- **Overseas & Hong Kong/Macau/Taiwan**: `https://api.rollinggo.ai/oauth2/authorize`
+
+**Request Parameters (Query)**:
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `client_id` | String | **Yes** | Unique identifier of your application |
+| `redirect_uri` | String | **Yes** | Redirect address after successful authorization |
+| `response_type` | String | **Yes** | Fixed value: `code` |
+| `scope` | String | Recommended | Requested permission scope (e.g., `openid email profile hotel:order:read`) |
+| `resource` | String | Recommended | URI of the target resource server (`https://mcp.rollinggo.cn/mcp/hotel` or `https://mcp.rollinggo.ai/mcp/hotel`) |
+| `state` | String | **Strongly Recommended** | Unpredictable random string for CSRF protection |
+| `code_challenge` | String | **Yes** | Base64URL-encoded SHA256 hash of `code_verifier` |
+| `code_challenge_method` | String | **Yes** | Fixed value: `S256` |
+
+---
+
+### Step 2: Handle Callback
+
+After the user grants authorization, the browser redirects to your `redirect_uri`:
+
+```text
+https://your-app.com/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=af0ifjsldkj
+```
+
+---
+
+### Step 3: Exchange Code for Token
+
+Send a POST request to exchange `code` for an `access_token`:
+
+**Request Method**: `POST`  
+**Request URL**:
+- **Mainland China**: `https://api.rollinggo.cn/oauth2/token`
+- **Overseas**: `https://api.rollinggo.ai/oauth2/token`
+
+**Content-Type**: `application/x-www-form-urlencoded`
+
+**Parameters**:
+- `grant_type`: `authorization_code`
+- `client_id`: your application client ID
+- `client_secret`: required for Confidential Clients (Web backends)
+- `code`: authorization code from Step 2
+- `redirect_uri`: matching Step 1
+- `code_verifier`: PKCE verifier string
+
+**Successful Response** (HTTP 200):
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "tIh2Cv_lVz2qHwL3nR5kXpJmYbNcTdEfGhIjKlMnOpQrStUvWx",
+  "scope": "openid email profile hotel:order:read"
+}
+```
+
+---
+
+## 🛠️ How to Use the Access Token
+
+When connecting to the MCP Server, include the Bearer token in the handshake header:
+
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+const transport = new SSEClientTransport(
+  new URL("https://mcp.rollinggo.cn/mcp/hotel"),
+  {
+    headers: {
+      "Authorization": `Bearer ${access_token}`
+    }
+  }
+);
+
+const client = new Client({ name: "my-app", version: "1.0.0" });
+await client.connect(transport);
+```

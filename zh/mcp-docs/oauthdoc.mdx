@@ -1,0 +1,439 @@
+---
+title: "OAUTH接入文档"
+sidebarTitle: "OAUTH接入文档"
+---
+
+欢迎使用 RollingGo OAuth 2.0 授权服务！本文档旨在帮助第三方开发者将 RollingGo 账户登录集成到自己的应用中。我们支持标准的 **OAuth 2.0 授权码模式 (Authorization Code Grant)**，并推荐客户端（尤其是移动端、桌面端、SPA 等公共客户端）结合使用 **PKCE (Proof Key for Code Exchange)** 安全扩展。
+
+RollingGo 提供两个服务节点，接入流程与参数完全一致，仅端点域名不同。请根据您的目标用户选择对应节点：
+
+| 服务节点 | 适用用户 | API 域名 | MCP Host |
+| :--- | :--- | :--- | :--- |
+| **中国大陆** | 中国大陆用户 | `api.rollinggo.cn` | `mcp.rollinggo.cn` |
+| **海外及港澳台** | 中国大陆以外用户 | `api.rollinggo.ai` | `mcp.rollinggo.ai` |
+
+> MCP Host 为 RollingGo MCP (Model Context Protocol) 服务主机，用于让 AI 应用（如智能体、LLM 客户端）通过标准 MCP 协议连接 RollingGo 的酒店能力。连接地址为 `https://MCP_HOST/mcp/hotel`，详见下文「场景 2：连接 MCP 服务」。
+
+> 下文示例中统一使用 `API_DOMAIN` 与 `MCP_HOST` 占位符，请替换为您对应节点的域名。
+
+---
+
+## 🚀 授权接入流程
+
+> **接入前准备**：请确保您已经从 RollingGo 获取了 `client_id`（客户端 ID），并确认 RollingGo 已为您配置了允许的 `redirect_uri`（重定向 URI）。如尚未获取，请联系您的对接商务。
+
+接入流程主要分为三个步骤：
+1. 引导用户访问授权页面，获取授权码 (`code`)。
+2. 接收重定向，获取授权码 (`code`)。
+3. 使用授权码 (`code`) 兑换访问令牌 (`access_token`)。
+
+### 步骤 1：请求授权 (Request Authorization)
+
+您的应用需要引导用户跳转到 DIDA 的授权端点。
+
+**请求方法**: `GET`
+
+**请求 URL**（根据您的节点选择）:
+- **中国大陆**: `https://api.rollinggo.cn/oauth2/authorize`
+- **海外及港澳台**: `https://api.rollinggo.ai/oauth2/authorize`
+
+**请求参数 (Query)**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `client_id` | String | **是** | 您的应用唯一标识 ID（由 DIDA 商务对接时提供，无固定格式要求） |
+| `redirect_uri` | String | **是** | 授权成功后的重定向地址。必须与您向 DIDA 商务提交并由 DIDA 配置的 Redirect URI 完全一致（包括协议、域名、端口、路径）。需进行 URL Encode |
+| `response_type` | String | **是** | 固定值：`code`。DIDA 仅支持授权码模式 |
+| `scope` | String | 推荐 | 申请的权限范围，多个 scope 使用空格分隔。例如：`openid email profile hotel:order:read`。建议按实际需要申请，避免请求过多权限导致用户犹豫 |
+| `resource` | String | 推荐 | 申请访问的目标资源服务器 URI。用于 RFC 8707 Resource Indication，确保颁发的 Token 仅限访问指定资源。中国大陆节点填写 `https://mcp.rollinggo.cn/mcp/hotel`，海外及港澳台节点填写 `https://mcp.rollinggo.ai/mcp/hotel` |
+| `state` | String | **强烈推荐** | 您的应用生成的一个不可猜测的随机字符串（建议 32 位以上），用于防止 CSRF 攻击。授权成功后会原样返回。您的应用必须在回调时校验此参数 |
+| `code_challenge` | String | **是** | PKCE 挑战值。对客户端随机生成的 `code_verifier` 进行 SHA256 哈希后 Base64URL 编码的值。生成方法见上文「PKCE 必读」。用于防止授权码被拦截后利用 |
+| `code_challenge_method` | String | **是** | PKCE 挑战方法。固定值：`S256`（服务器唯一支持的 PKCE 方法） |
+| `prompt` | String | 选填 | 控制授权页面行为。设置为 `consent` 时，强制弹出授权确认页面（即使用户此前已授权该应用）。设置为 `login` 时，强制用户重新登录（即使已有会话） |
+
+**请求示例**（将 `API_DOMAIN`、`MCP_HOST` 替换为对应节点域名）:
+```text
+https://API_DOMAIN/oauth2/authorize?client_id=your_client_id&redirect_uri=https%3A%2F%2Fyour-app.com%2Fcallback&response_type=code&scope=openid%20email%20profile%20hotel%3Aorder%3Aread&resource=https%3A%2F%2FMCP_HOST%2Fmcp%2Fhotel&state=af0ifjsldkj&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&prompt=consent
+```
+
+**错误响应**：
+
+| HTTP 状态码 | 错误场景 | 错误码 (error) | 说明 |
+| :--- | :--- | :--- | :--- |
+| 400 Bad Request | 缺少 `client_id` | `invalid_request` | 必填参数缺失 |
+| 400 Bad Request | 缺少 `response_type` 或值不为 `code` | `unsupported_response_type` | 仅支持 `code` |
+| 400 Bad Request | `client_id` 不存在或已失效 | `invalid_client` | 应用未配置或已被禁用 |
+| 400 Bad Request | `redirect_uri` 与后台配置不匹配 | `invalid_redirect_uri` | 回调地址不在白名单内 |
+| 400 Bad Request | `code_challenge_method` 不为 `S256` | `invalid_request` | 仅支持 S256 |
+
+> **用户体验说明**：如果所有参数校验通过，RollingGo 会展示登录页面（邮箱 + 验证码登录）。用户完成登录后，如果该应用是首次授权，会展示授权确认页面，列出所有请求的 scope 及其含义。用户确认后，浏览器将重定向到 `redirect_uri` 并附带授权码。
+
+---
+
+### 步骤 2：接收授权码 (Handle Callback)
+
+用户在 RollingGo 页面完成登录并同意授权后，浏览器将会重定向到您在第一步中提供的 `redirect_uri`，并在 URL 的 Query String 中附带授权码 (`code`)。
+
+**重定向示例**:
+```text
+https://your-app.com/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=af0ifjsldkj
+```
+
+**回调参数**:
+
+| 参数名 | 说明 |
+| :--- | :--- |
+| `code` | 授权码。有效期较短（以实际响应为准），且只能使用一次。使用后立即失效 |
+| `state` | 请求授权时您传入的随机字符串。**您的应用必须校验此参数与请求时一致**，以防止 CSRF 攻击 |
+
+**错误回调示例**（用户拒绝授权或发生错误时）:
+```text
+https://your-app.com/callback?error=access_denied&error_description=%E7%94%A8%E6%88%B7%E6%8B%92%E7%BB%9D%E6%8E%88%E6%9D%83&state=af0ifjsldkj
+```
+
+| 参数名 | 说明 |
+| :--- | :--- |
+| `error` | 错误码。常见值：`access_denied`（用户拒绝授权）、`invalid_request`（请求参数错误） |
+| `error_description` | 人类可读的错误描述（URL 编码） |
+| `state` | 请求授权时您传入的随机字符串 |
+
+---
+
+### 步骤 3：兑换令牌 (Exchange Code for Token)
+
+拿到 `code` 后，您的后端服务（或使用 PKCE 的公共客户端）需要向 DIDA 的令牌端点发起 POST 请求，将 `code` 兑换为 `access_token`。
+
+**请求方法**: `POST`  
+**请求 URL**（根据您的节点选择）:
+- **中国大陆**: `https://api.rollinggo.cn/oauth2/token`
+- **海外及港澳台**: `https://api.rollinggo.ai/oauth2/token`
+
+**Content-Type**: `application/x-www-form-urlencoded`（不支持 `application/json`）
+
+**请求参数 (Body)**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `grant_type` | String | **是** | 固定值：`authorization_code` |
+| `client_id` | String | **是** | 您的应用唯一标识 ID（与步骤 1 中传入的一致） |
+| `client_secret` | String | 条件必填 | 仅**机密客户端 (Confidential Client，如 Web 后端)** 需提供此参数。公共客户端 (Public Client，如 SPA、桌面端) 无需提供，必须使用 PKCE |
+| `code` | String | **是** | 步骤 2 中获取到的授权码 |
+| `redirect_uri` | String | **是** | 必须与步骤 1 中传入的 `redirect_uri` **完全一致**（包括末尾斜杠、大小写） |
+| `code_verifier` | String | **是** | 您在步骤 1 生成 `code_challenge` 时所用的原始随机字符串（长度 43-128 字符）。DIDA 会对其执行 SHA256 哈希并与 `code_challenge` 比对，不匹配则拒绝颁发 Token |
+
+> **注意**：`refresh_token` 仅在您使用 **机密客户端**（即配置了 `client_secret`）时才会在响应中返回。公共客户端不返回 `refresh_token`。
+
+**请求示例 (Curl，机密客户端)**:
+```bash
+curl -X POST https://API_DOMAIN/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "client_id=your_client_id" \
+  -d "client_secret=your_client_secret" \
+  -d "code=SplxlOBeZQQYbYS6WxSbIA" \
+  -d "redirect_uri=https://your-app.com/callback" \
+  -d "code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+```
+
+**请求示例 (Curl，公共客户端 + PKCE)**:
+```bash
+curl -X POST https://API_DOMAIN/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "client_id=your_client_id" \
+  -d "code=SplxlOBeZQQYbYS6WxSbIA" \
+  -d "redirect_uri=https://your-app.com/callback" \
+  -d "code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+```
+
+**成功响应示例** (HTTP 200):
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "tIh2Cv_lVz2qHwL3nR5kXpJmYbNcTdEfGhIjKlMnOpQrStUvWx",
+  "scope": "openid email profile hotel:order:read"
+}
+```
+
+**响应参数说明**:
+
+| 参数名 | 说明 |
+| :--- | :--- |
+| `access_token` | 访问令牌（JWT 格式）。使用时应以响应中的 `expires_in` 为准 |
+| `token_type` | 固定值：`Bearer`。使用时在 HTTP 头中以 `Bearer ` 前缀携带 |
+| `expires_in` | 令牌有效期（秒）。以实际响应返回值为准 |
+| `refresh_token` | 刷新令牌。**仅机密客户端（配置了 `client_secret`）会返回**。用于在 access_token 过期后获取新的 access_token |
+| `scope` | 实际授予的 scope 列表（空格分隔）。可能少于您请求的 scope（用户可选择拒绝部分权限） |
+
+**错误响应示例** (HTTP 400):
+```json
+{
+  "error": "invalid_grant",
+  "error_description": "Authorization code expired, or was already used."
+}
+```
+
+| HTTP 状态码 | 错误码 (error) | 常见原因 |
+| :--- | :--- | :--- |
+| 400 Bad Request | `invalid_grant` | 授权码已过期、已使用过、或 `code_verifier` 与 `code_challenge` 不匹配 |
+| 400 Bad Request | `invalid_client` | `client_id` 不存在、已禁用、或 `client_secret` 错误 |
+| 400 Bad Request | `invalid_request` | 缺少必填参数（如 `grant_type`、`code`、`redirect_uri`） |
+| 400 Bad Request | `unauthorized_client` | 该客户端未被授权使用此 grant_type |
+| 401 Unauthorized | `invalid_client` | 机密客户端认证失败（`client_secret_basic` 方式时，`Authorization` 头中的 Base64 编码凭证无效） |
+
+> **支持与联系**：如您在接入过程中遇到 `client_id` 无效、`redirect_uri` 不匹配、`client_secret` 丢失或任何配置相关问题，请联系您的 RollingGo 对接商务团队协助处理。
+
+---
+
+## 🛡️ 安全建议：PKCE 必读
+
+PKCE (Proof Key for Code Exchange) 用于防止授权码被拦截后利用。对于无后端的纯前端应用 (SPA)、桌面端或移动端等公共客户端，**强烈建议使用 PKCE**，避免在客户端代码中硬编码 `client_secret`。步骤 1 和步骤 3 均会用到下述方法生成的值。工作原理：
+
+1. **生成 `code_verifier`**：客户端生成一个高熵的随机字符串（长度 43-128 字符，仅包含 `[A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"` 字符）。
+2. **计算 `code_challenge`**：对 `code_verifier` 执行 SHA256 哈希，然后进行 Base64URL 编码（不带 `=` 填充）。
+   ```javascript
+   // JavaScript 示例
+   const array = new Uint8Array(32);
+   crypto.getRandomValues(array);
+   const code_verifier = btoa(String.fromCharCode(...array))
+     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+   const encoder = new TextEncoder();
+   const data = encoder.encode(code_verifier);
+   const digest = await crypto.subtle.digest('SHA-256', data);
+   const code_challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+   ```
+3. **请求授权页（步骤 1）**：携带 `code_challenge` 和 `code_challenge_method=S256`。
+4. **兑换令牌（步骤 3）**：携带原始的 `code_verifier`，无需传递 `client_secret`（公共客户端）。RollingGo 会在后端执行相同的 SHA256 计算并比对，不匹配则拒绝颁发 Token。
+
+---
+
+## 🛠️ 如何使用 Access Token (调用受保护资源)
+
+拿到 `access_token` 后，您就可以代表用户访问 DIDA 提供的各类受保护资源或连接 MCP Server 了。
+
+在使用时，您只需将 `access_token` 放入 HTTP 请求头的 `Authorization` 字段中，并以 `Bearer `（注意后面有一个空格）开头。
+
+### 场景 1：访问 REST API 资源（用户信息）
+
+例如，访问用户信息端点 `/userinfo`：
+
+**请求示例 (Curl)**:
+```bash
+curl -X GET https://API_DOMAIN/userinfo \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0..."
+```
+
+**成功响应示例** (HTTP 200):
+```json
+{
+  "sub": "user_123456",
+  "email": "user@example.com",
+  "email_verified": true,
+  "name": "张三"
+}
+```
+
+### 场景 2：连接 MCP (Model Context Protocol) 服务
+
+当您的 MCP 客户端与 RollingGo 的 MCP Server 建立 SSE 或 WebSocket 连接时，同样需要在初始 HTTP 请求中带上鉴权 Header。
+
+- **中国大陆 MCP Server**: `https://mcp.rollinggo.cn/mcp/hotel`
+- **海外及港澳台 MCP Server**: `https://mcp.rollinggo.ai/mcp/hotel`
+
+**SSE 连接示例 (Node.js/JS 伪代码)**:
+```javascript
+const headers = {
+  'Authorization': `Bearer ${access_token}`
+};
+
+// 发起带有鉴权头部的请求
+const eventSource = new EventSource('https://MCP_HOST/mcp/hotel', { headers });
+```
+
+**MCP SDK 客户端连接示例 (TypeScript)**:
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+const transport = new SSEClientTransport(
+  new URL("https://MCP_HOST/mcp/hotel"),
+  {
+    headers: {
+      "Authorization": `Bearer ${access_token}`
+    }
+  }
+);
+
+const client = new Client({ name: "my-app", version: "1.0.0" });
+await client.connect(transport);
+```
+
+### 场景 3：使用 Refresh Token 续期
+
+当 `access_token` 过期后，您可以使用 `refresh_token` 获取新的 `access_token`，无需用户重新登录。
+
+> **适用范围**：`refresh_token` 仅对**机密客户端（配置了 `client_secret`）**有效。公共客户端不会获得 `refresh_token`，如需长期访问请重新走授权流程。
+
+**请求方法**: `POST`  
+**请求 URL**（根据您的节点选择）:
+- **中国大陆**: `https://api.rollinggo.cn/oauth2/token`
+- **海外及港澳台**: `https://api.rollinggo.ai/oauth2/token`
+
+**请求参数 (Body)**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `grant_type` | String | **是** | 固定值：`refresh_token` |
+| `client_id` | String | **是** | 您的应用唯一标识 ID |
+| `client_secret` | String | 条件必填 | 机密客户端需提供 |
+| `refresh_token` | String | **是** | 步骤 3 中获取到的 refresh_token |
+
+**请求示例 (Curl)**:
+```bash
+curl -X POST https://API_DOMAIN/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "client_id=your_client_id" \
+  -d "client_secret=your_client_secret" \
+  -d "refresh_token=tIh2Cv_lVz2qHwL3nR5kXpJmYbNcTdEfGhIjKlMnOpQrStUvWx"
+```
+
+**成功响应示例**:
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "aB3cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5...",
+  "scope": "openid email profile hotel:order:read"
+}
+```
+
+> **重要**：使用 refresh_token 后，响应中可能返回一个新的 refresh_token。请以实际响应为准，并妥善保存每次返回的新 refresh_token。
+
+### 场景 4：撤销 Token
+
+当用户退出登录或您需要使某个 Token 失效时，可以调用撤销端点。
+
+**请求方法**: `POST`  
+**请求 URL**（根据您的节点选择）:
+- **中国大陆**: `https://api.rollinggo.cn/oauth2/revoke`
+- **海外及港澳台**: `https://api.rollinggo.ai/oauth2/revoke`
+
+**请求参数 (Body)**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `token` | String | **是** | 要撤销的 access_token 或 refresh_token |
+| `token_type_hint` | String | 选填 | 提示 Token 类型：`access_token` 或 `refresh_token`。有助于加快处理速度 |
+
+**请求示例 (Curl)**:
+```bash
+curl -X POST https://API_DOMAIN/oauth2/revoke \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0..." \
+  -d "token_type_hint=access_token"
+```
+
+**成功响应**: HTTP 200（空响应体）
+
+### 场景 5：Token 内省 (Introspection)
+
+用于验证一个 Token 是否有效，并获取其元数据（适用于资源服务器端验证）。
+
+**请求方法**: `POST`  
+**请求 URL**（根据您的节点选择）:
+- **中国大陆**: `https://api.rollinggo.cn/oauth2/introspect`
+- **海外及港澳台**: `https://api.rollinggo.ai/oauth2/introspect`
+
+**请求参数 (Body)**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `token` | String | **是** | 要验证的 access_token 或 refresh_token |
+
+**请求示例 (Curl)**:
+```bash
+curl -X POST https://API_DOMAIN/oauth2/introspect \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0..."
+```
+
+**成功响应示例**（Token 有效时）:
+```json
+{
+  "active": true,
+  "scope": "openid email profile hotel:order:read",
+  "client_id": "your_client_id",
+  "sub": "user_123456",
+  "exp": 1700000000,
+  "iat": 1699996400,
+  "iss": "https://api.rollinggo.cn"
+}
+```
+
+**Token 无效时响应**:
+```json
+{
+  "active": false
+}
+```
+
+---
+
+## 📋 附录：基础信息（参考）
+
+> 本附录供手动配置、故障排查时查阅，正常接入无需阅读。RollingGo 提供标准的 OAuth 2.0 / OpenID Connect 服务发现机制，开发者可以直接请求以下端点，自动获取授权服务器支持的所有配置（包括各种端点 URL、支持的 scope、加密算法等）：
+
+- **OAuth 2.0 发现端点**: `https://API_DOMAIN/.well-known/oauth-authorization-server`
+- **OIDC 发现端点**: `https://API_DOMAIN/.well-known/openid-configuration`
+
+### 核心端点总览
+
+| 端点 | 中国大陆 | 海外及港澳台 |
+| :--- | :--- | :--- |
+| 授权端点 (Authorization) | `https://api.rollinggo.cn/oauth2/authorize` | `https://api.rollinggo.ai/oauth2/authorize` |
+| 令牌端点 (Token) | `https://api.rollinggo.cn/oauth2/token` | `https://api.rollinggo.ai/oauth2/token` |
+| 设备授权端点 (Device Authorization) | `https://api.rollinggo.cn/oauth2/device_authorization` | `https://api.rollinggo.ai/oauth2/device_authorization` |
+| 用户信息端点 (Userinfo) | `https://api.rollinggo.cn/userinfo` | `https://api.rollinggo.ai/userinfo` |
+| 登出端点 (End Session) | `https://api.rollinggo.cn/connect/logout` | `https://api.rollinggo.ai/connect/logout` |
+| 公钥端点 (JWKS URI) | `https://api.rollinggo.cn/oauth2/jwks` | `https://api.rollinggo.ai/oauth2/jwks` |
+| 令牌撤销端点 (Revocation) | `https://api.rollinggo.cn/oauth2/revoke` | `https://api.rollinggo.ai/oauth2/revoke` |
+| 令牌内省端点 (Introspection) | `https://api.rollinggo.cn/oauth2/introspect` | `https://api.rollinggo.ai/oauth2/introspect` |
+| MCP Server | `https://mcp.rollinggo.cn/mcp/hotel` | `https://mcp.rollinggo.ai/mcp/hotel` |
+
+### 支持的 Scope 列表
+
+| Scope | 说明 | 是否需要用户授权 |
+| :--- | :--- | :--- |
+| `openid` | 获取用户唯一标识 (sub) | 是 |
+| `email` | 获取用户邮箱地址及验证状态 | 是 |
+| `phone` | 获取用户手机号码 | 是 |
+| `profile` | 获取用户姓名等基本信息 | 是 |
+| `hotel:order:read` | 查询酒店订单 | 是 |
+| `hotel:order:book` | 预订酒店并完成支付确认 | 是 |
+| `hotel:order:cancel` | 取消酒店订单 | 是 |
+
+> 以上 Scope 列表与授权服务器 `.well-known/oauth-authorization-server` 返回的 `scopes_supported` 完全一致。
+
+> **注意**：请求 `hotel:order:book`、`hotel:order:cancel` 等写操作 scope 时，授权确认页面会明确提示用户该应用将代表其执行的操作。用户可选择拒绝部分 scope。
+
+### 服务器能力摘要
+
+根据服务发现端点返回的实际配置，RollingGo 授权服务器支持以下能力：
+
+| 能力 | 支持情况 |
+| :--- | :--- |
+| 响应类型 (response_type) | `code`（仅授权码模式） |
+| 授权类型 (grant_type) | `authorization_code`、`client_credentials`、`refresh_token`、`urn:ietf:params:oauth:grant-type:device_code`、`urn:ietf:params:oauth:grant-type:token-exchange` |
+| PKCE 挑战方法 | `S256` |
+| 客户端认证方式 | `client_secret_basic`、`client_secret_post`、`client_secret_jwt`、`private_key_jwt`、`tls_client_auth`、`self_signed_tls_client_auth` |
+| ID Token 签名算法 | RS256 |
+| DPoP 签名算法 | RS256、RS384、RS512、PS256、PS384、PS512、ES256、ES384、ES512 |
+| TLS 客户端证书绑定 | 支持 |
+
+> 本表内容均来自授权服务器 `.well-known/oauth-authorization-server` 与 `.well-known/openid-configuration` 实际返回的配置。除本文档演示的授权码模式外，`device_code`、`token-exchange` 等流程如需使用，请联系您的对接商务获取对应接入说明。

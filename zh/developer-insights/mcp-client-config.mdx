@@ -1,0 +1,279 @@
+---
+title: "RollingGo MCP客户端接入配置全览"
+sidebarTitle: "RollingGo酒店MCP客户端完整接入方法"
+---
+
+本文覆盖官网客户端矩阵全部平台 + Cherry Studio + Cline，共 13 个客户端的完整接入方法。
+
+## 前置条件
+
+- 一个免费 API Key（形如 `mcp_xxxxxxxxxxxxxxxxxxxxxxxx`），前往 [申请入口](https://rollinggo.store/apply) 申请，1-3 分钟自动审核通过。
+- 酒店 MCP 端点：`https://mcp.rollinggo.cn/mcp`
+- 统一鉴权头：`Authorization: Bearer YOUR_API_KEY`（备选 `X-Secret-Key`）
+
+## 配置速览表
+
+| 平台 | 配置文件 / 路径 | 传输类型 |
+| --- | --- | --- |
+| Claude Code | 终端命令，无需文件 | HTTP |
+| Cursor | `.cursor/mcp.json` | streamable-http |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | serverUrl |
+| Copilot (VS Code) | `.vscode/mcp.json` | HTTP |
+| Antigravity | `~/.gemini/antigravity/mcp_config.json` | serverUrl |
+| Kiro | `.kiro/settings/mcp.json` | 默认 |
+| Codex | `.codex/config.toml` | HTTP |
+| OpenCode | `opencode.jsonc` | remote |
+| Trae | `.trae/mcp.json` | 默认 |
+| Manus | 设置界面表单，无文件 | HTTP |
+| Qoder | 设置界面 + JSON | SSE |
+| Cherry Studio | 设置界面 + JSON | HTTP |
+| Cline (VS Code) | VS Code `settings.json` | HTTP |
+
+## 1. Claude Code
+
+在终端执行以下命令即可，无需手写文件：
+
+```bash
+claude mcp add RollingGo-Hotel \
+  --transport http \
+  --header "Authorization: Bearer YOUR_API_KEY" \
+  https://mcp.rollinggo.cn/mcp
+```
+
+## 2. Cursor
+
+在项目根目录创建 `.cursor/mcp.json`，或通过 Cursor Settings > MCP 添加：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+保存后点击「刷新 MCP 列表」。
+
+## 3. Windsurf
+
+配置文件：`~/.codeium/windsurf/mcp_config.json`：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "serverUrl": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+在 Windsurf 设置中找到 MCP Servers 配置后添加。
+
+## 4. Copilot (VS Code)
+
+在项目根目录创建 `.vscode/mcp.json`，或通过 VS Code Settings 搜索 "MCP" 添加：
+
+```json
+{
+  "servers": {
+    "RollingGo-Hotel": {
+      "type": "http",
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+> 注意：Copilot 用的是顶层 `servers` 而非 `mcpServers`。
+
+## 5. Antigravity (Google)
+
+打开 Antigravity 设置 → MCP Store > Manage MCP Servers → View raw config，添加：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "serverUrl": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+配置文件路径：`~/.gemini/antigravity/mcp_config.json`。
+
+## 6. Kiro
+
+配置文件：`.kiro/settings/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+## 7. Codex (OpenAI)
+
+在项目根目录创建 `.codex/config.toml`（或全局 `~/.codex/config.toml`）：
+
+```toml
+[mcp_servers.RollingGo-Hotel]
+url = "https://mcp.rollinggo.cn/mcp"
+http_headers = { "Authorization" = "Bearer YOUR_API_KEY" }
+```
+
+## 8. OpenCode
+
+在项目根目录创建 `opencode.jsonc`：
+
+```jsonc
+{
+  "mcp": {
+    "RollingGo-Hotel": {
+      "type": "remote",
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+## 9. Trae
+
+在项目根目录创建 `.trae/mcp.json`（设置 > MCP > 添加 > 手动添加）：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+## 10. Manus
+
+无需配置文件，登录 Manus 平台 → 设置 > 集成 > 自定义 MCP 服务器 → 添加服务器，填写：
+
+```
+服务器名称: RollingGo-Hotel
+服务器 URL: https://mcp.rollinggo.cn/mcp
+身份验证: Bearer YOUR_API_KEY
+```
+
+## 11. Qoder
+
+打开 Qoder Settings → MCP → + Add，粘贴：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "type": "sse",
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+> 注意：Qoder 用 `type: "sse"`，与 Cursor 的 `streamable-http` 不同，照抄本页即可。
+
+## 12. Cherry Studio
+
+打开「设置 → MCP 服务 → 添加」，类型选 HTTP，URL 填 `https://mcp.rollinggo.cn/mcp`，鉴权选 Bearer 填入 Key；或写入如下配置：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+## 13. Cline (VS Code 扩展)
+
+在 VS Code 用户级 `settings.json` 增加 `cline.mcp.servers`：
+
+```json
+{
+  "cline.mcp.servers": [
+    {
+      "name": "RollingGo-Hotel",
+      "type": "http",
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": { "Authorization": "Bearer YOUR_API_KEY" },
+      "enabled": true
+    }
+  ]
+}
+```
+
+保存后重启 VS Code，在 Cline 面板提问即可触发 `searchHotels`。
+
+## 其他平台
+
+- 豆包 / 扣子 / Qclaw / ClawHub 等 Agent 平台不走 MCP，安装 [RollingGo 全能订酒店 Skill](/solutions/skills) 即可。
+
+## 接入后验证
+
+配置后若工具未出现，按顺序排查：
+
+1. `type` 字段：Cursor/Trae/Kiro/OpenCode 等用 `streamable-http`（Claude Code 命令行用 `http`，Qoder 用 `sse`），混用会导致工具列表不显示；
+2. API Key 放 Headers 而非 URL 或正文，且 `mcp_` 前缀后无空格；
+3. 保存后重启客户端 / 刷新 MCP 列表；
+4. 用 cURL 先连通服务端：
+
+```bash
+curl -X POST https://mcp.rollinggo.cn/mcp \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+cURL 能连通但客户端不行，就是客户端配置问题；cURL 也不行则是 Key 或服务端问题。
+
+## 相关链接
+
+- [快速开始](/docs/mcp-docs/quick-start)
+- [MCP Tool 参考](/docs/mcp-docs/mcp-tool-reference)
+- [常见问题 FAQ](/docs/faq)
+- [免费申请 API Key](/apply)

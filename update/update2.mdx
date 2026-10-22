@@ -1,0 +1,253 @@
+---
+title: "RollingGo Hotel MCP Upgrade Guide: H5 to Mini Program — Multi-Option Guide"
+sidebarTitle: "Mini Program Upgrade Guide"
+---
+
+# RollingGo Hotel MCP Upgrade Guide: H5 to Mini Program — Multi-Option Guide
+
+> **Applicable Version**: v2.5  
+> **Updated**: 2026-08-14  
+> **Applicable To**: Existing channels/partners currently using the H5 solution (`bookingUrl`) and planning to upgrade to a Mini Program landing experience.
+
+---
+
+## 1. Background
+
+Existing channels currently use the H5 solution: `searchHotels` / `getHotelDetail` return a `bookingUrl` (H5 booking page URL), where users complete their bookings in a browser/H5 environment.
+
+Starting from v2.5, channels can be configured with **three Mini Program landing options**, depending on the user scenario: H5 to Mini Program (`H5_TO_MINIAPP`), App to Mini Program (`APP_TO_MINIAPP`), and Mini Program to Mini Program (`MINIAPP_TO_MINIAPP`). This guide provides a complete comparison, migration steps, and code examples for all three options.
+
+---
+
+## 2. Options Overview and Comparison
+
+| Comparison | H5 (Existing) | Option A: H5\_TO\_MINIAPP | Option B: APP\_TO\_MINIAPP | Option C: MINIAPP\_TO\_MINIAPP |
+| ----- | --------------------- | --------------------------------- | --------------------------------- | ---------------------------------------------------- |
+| Use Case | Browser / H5 | H5 page → Mini Program | Host App → Mini Program | Mini Program → Mini Program |
+| Output Field | `bookingUrl` (string) | `miniProgramInfo` (`type`, `url`) | `miniProgramInfo` (`type`, `url`) | `miniProgramInfo` (`type`, `appId`, `path`, `query`) |
+| Navigation Method | Open H5 page in browser | Open the link in WeChat and automatically launch the Mini Program | Directly launch the Mini Program on iOS / Android | Direct navigation via `wx.navigateToMiniProgram` |
+| Prerequisites | None | None | None | Frontend navigation event implementation |
+| Migration Effort | — | Low (replace the field only) | Low (replace the field only) | Medium (implement frontend navigation event) |
+
+---
+
+## 3. Option A: H5\_TO\_MINIAPP (H5 to Mini Program)
+
+### 3.1 Use Cases
+
+Users browse hotels on a browser / H5 page / website and are redirected to the WeChat Mini Program to complete their booking. Suitable for H5 sharing pages, Official Account menus, web landing pages, and similar scenarios.
+
+### 3.2 Integration Details
+
+- The API returns a WeChat encrypted link (`https://wxmpurl.cn/*`). When users click the link inside WeChat, the RollingGo booking Mini Program is automatically launched without requiring users to search for it manually.
+- Link generation and maintenance are handled by RollingGo. The frontend can use the link directly.
+
+### 3.3 API Response Example
+
+```json
+{
+  "success": true,
+  "hotelId": 102906,
+  "checkIn": "2026-08-12",
+  "checkOut": "2026-08-13",
+  "miniProgramInfo": {
+    "type": "H5_TO_MINIAPP",
+    "url": "https://wxmpurl.cn/abCDef123456"
+  },
+  "roomRatePlans": [ ... ],
+  "message": "Search successful"
+}
+```
+
+### 3.4 Migration Steps
+
+1. Contact RollingGo to configure the channel landing type as `H5_TO_MINIAPP`.
+2. Update the frontend to read the `miniProgramInfo` field.
+3. Expose the `url` as a regular link/button to users. **It must be triggered by a user click/tap**, after which WeChat will automatically launch the Mini Program.
+
+### 3.5 Code Example
+
+```javascript
+if (resp.miniProgramInfo && resp.miniProgramInfo.type === "H5_TO_MINIAPP") {
+  const url = resp.miniProgramInfo.url;   // https://wxmpurl.cn/abCDef123456
+  // H5 page: use it directly as a link
+  // Book Now
+}
+```
+
+### 3.6 Notes
+
+- ⚠️ **web-view limitation**: A Mini Program's `web-view` cannot navigate to a Mini Program through a URL Link. For this scenario, use Option C (`MINIAPP_TO_MINIAPP`).
+
+---
+
+## 4. Option B: APP\_TO\_MINIAPP (App to Mini Program)
+
+### 4.1 Use Cases
+
+Users browse hotels inside a host App and launch the WeChat Mini Program to complete their booking. Suitable for travel apps and super apps with embedded travel scenarios.
+
+### 4.2 Integration Details
+
+- The API returns a WeChat Scheme link (`weixin://dl/business/?...`), which can directly launch the Mini Program on both iOS and Android.
+
+### 4.3 API Response Example
+
+```json
+{
+  "success": true,
+  "hotelId": 102906,
+  "checkIn": "2026-08-12",
+  "checkOut": "2026-08-13",
+  "miniProgramInfo": {
+    "type": "APP_TO_MINIAPP",
+    "url": "weixin://dl/business/?appid=wx1234567890abcdef&path=pages/hotel/detail/index&query=id%3D102906%26checkInDate%3D2026-08-12%26checkOutDate%3D2026-08-13%26roomCount%3D1%26adultCount%3D1%26childCount%3D0%26childAgeDetails%3D%26utm_source%3DfusionAI-2026"
+  },
+  "roomRatePlans": [ ... ],
+  "message": "Search successful"
+}
+```
+
+### 4.4 Migration Steps
+
+1. Contact RollingGo to configure the channel landing type as `APP_TO_MINIAPP` (RollingGo handles the remaining WeChat-side configuration).
+2. Read `miniProgramInfo.url` on the frontend.
+3. Directly invoke the system to open the Scheme and launch the Mini Program.
+
+### 4.5 Code Example
+
+```javascript
+// Directly open the Scheme to launch the WeChat Mini Program
+window.location.href = resp.miniProgramInfo.url;
+```
+
+### 4.6 Notes
+
+- WeChat-side configuration is handled by RollingGo. If the Mini Program fails to launch, contact RollingGo for troubleshooting.
+
+---
+
+## 5. Option C: MINIAPP\_TO\_MINIAPP (Mini Program to Mini Program) ★ Recommended for Mini Program Scenarios
+
+### 5.1 Use Cases
+
+Users browse hotels within your WeChat Mini Program and launch the RollingGo booking Mini Program directly via `wx.navigateToMiniProgram`. **This is the preferred option for Mini Program scenarios** (a `web-view` cannot use URL Links, so this option is required).
+
+### 5.2 Integration Details
+
+- The API returns structured parameters: `appId` (RollingGo Mini Program AppID) + `path` (page path) + `query` (query string).
+- The frontend calls `wx.navigateToMiniProgram` to initiate the navigation, using the `path?query` format.
+
+### 5.3 API Response Example
+
+```json
+{
+  "success": true,
+  "hotelId": 102906,
+  "checkIn": "2026-08-12",
+  "checkOut": "2026-08-13",
+  "miniProgramInfo": {
+    "type": "MINIAPP_TO_MINIAPP",
+    "appId": "wx1234567890abcdef",
+    "path": "pages/hotel/detail/index",
+    "query": "id=102906&checkInDate=2026-08-12&checkOutDate=2026-08-13&roomCount=1&adultCount=1&childCount=0&childAgeDetails=&utm_source=fusionAI-2026"
+  },
+  "roomRatePlans": [ ... ],
+  "message": "Search successful"
+}
+```
+
+### 5.4 Migration Steps
+
+1. Contact RollingGo to configure the channel landing type as `MINIAPP_TO_MINIAPP`.
+2. Read `miniProgramInfo` on the frontend and store the navigation parameters.
+3. Bind the navigation to a user click event and call `wx.navigateToMiniProgram` (**must be triggered by a user click; do not call it directly inside an API callback**).
+4. (Optional) Return to your Mini Program after booking and handle the return parameters in `onShow`.
+
+### 5.5 Code Example
+
+```javascript
+// User clicks the "Book Now" button
+onBookingTap() {
+  const { appId, path, query } = this.miniProgramInfo;
+  wx.navigateToMiniProgram({
+    appId,
+    path: query ? `${path}?${query}` : path,
+    extraData: {},
+    success() { /* Navigation successful */ },
+    fail(err) { wx.showToast({ title: "Failed to launch booking Mini Program. Please try again.", icon: "none" }); }
+  });
+}
+```
+
+### 5.6 Notes
+
+- `path` is the page path. All dynamic parameters are contained in `query`. Do not split or truncate them.
+- If the Mini Program fails to launch, the API does not provide an automatic fallback. The channel is responsible for displaying guidance to the user.
+- WeChat may display a confirmation dialog before navigation. This is standard platform behavior.
+
+---
+
+## 6. Option Selection Guide
+
+```text
+[Where is the user entering from?]
+   │
+   ├─ Inside a Mini Program (web-view or native page) ──► Option C: MINIAPP_TO_MINIAPP (Recommended)
+   │
+   ├─ Host App ─────────────────────────────────────────► Option B: APP_TO_MINIAPP (Direct launch)
+   │
+   └─ Browser / H5 / Official Account webpage ─────────► Option A: H5_TO_MINIAPP (Auto-launch in WeChat)
+```
+
+| Decision Factor | Recommendation |
+| ------------- | ----------------------------- |
+| Entry point is a WeChat Mini Program | **Option C** (the only choice for `web-view` scenarios) |
+| Entry point is a host App | **Option B** (direct launch on iOS / Android) |
+| Entry point is Browser/H5/Official Account | **Option A** (the only option that can launch a Mini Program from H5) |
+| Multiple entry points | Confirm the supported configuration with RollingGo |
+
+---
+
+## 7. General Notes (Applicable to All Three Options)
+
+1. **Mutual Exclusivity**: After the upgrade, the response returns `miniProgramInfo` instead of `bookingUrl`. The two fields will never appear at the same time.
+2. **Parameter Integrity**: Fully pass through `id` / `checkInDate` / `checkOutDate` / `roomCount` / `adultCount` / `childCount` / `childAgeDetails`. Do not manually modify the parameter values.
+3. **No Automatic Fallback**: If the Mini Program fails to launch, there is no automatic fallback to H5. The channel is responsible for displaying guidance to users.
+4. **No Changes to Request Parameters**: Existing API request parameters and invocation methods remain unchanged. Only the landing-related response fields are added.
+
+---
+
+## 8. Acceptance Checklist
+
+| # | Acceptance Item | Expected Result |
+| - | ----- | -------------------------------------------------- |
+| 1 | Configuration Applied | The corresponding API returns `miniProgramInfo`, and its `type` matches the configured landing type |
+| 2 | Mutual Exclusivity | No `bookingUrl` remains in the response |
+| 3 | Parameter Integrity | `path` is the page path; `query` / `url` contains all required business parameters |
+| 4 | Successful Navigation | The RollingGo booking Mini Program launches correctly on the corresponding platform (WeChat / iOS / Android / Mini Program) |
+| 5 | Correct Destination | The destination page displays the corresponding hotel, dates, and guest information without parameter loss |
+
+---
+
+## 9. FAQ
+
+**Q1: Can one channel use multiple options at the same time?**  
+No. A channel can only be configured with one landing type at a time. Choose the option that best matches your primary user entry point.
+
+**Q2: How does Option B launch the Mini Program?**  
+Both iOS and Android can directly launch the WeChat Mini Program through the returned Scheme link.
+
+**Q3: Why can't the `path` in Option C contain parameters?**  
+RollingGo standardizes the landing parameters by separating them into `path` (page path) and `query` (query string). When calling `wx.navigateToMiniProgram`, they are combined using the `path?query` format.
+
+**Q4: Does the upgrade affect the existing API request parameters?**  
+No. Existing API request parameters and invocation methods remain unchanged. Only the landing-related response fields are added.
+
+**Q5: Will the system fall back to H5 if the Mini Program fails to launch?**  
+No. There is no automatic fallback. The channel is responsible for displaying guidance to users.
+
+---
+
+*Document Version: v2.5 (H5 to Mini Program Multi-Option Guide)*  
+*Updated: 2026-09-22*

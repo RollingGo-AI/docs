@@ -1,0 +1,192 @@
+---
+title: "RollingGo酒店MCP接入FAQ"
+sidebarTitle: "FAQ"
+---
+
+API Key 申请与鉴权、客户端接入配置、酒店查询与报价、下单与交易、计费与返佣、常见报错排查。
+
+---
+
+# 常见问题
+
+## 1. 申请与 API Key
+
+### 1.1 RollingGo 酒店 MCP 收费吗？
+
+完全免费，无调用量限制。企业和个人开发者均可申请。
+
+### 1.2 如何申请 API Key？多久通过？
+
+前往 [申请入口](https://rollinggo.store/apply) 填写基本信息即可。1-3 分钟内自动审核通过，Partner 账户信息会发到邮箱。
+
+### 1.3 API Key 是什么格式？为什么要以 `mcp_` 开头？
+
+Key 形如 `mcp_xxxxxxxxxxxxxxxxxxxxxxxx`。认证统一走 `Authorization: Bearer YOUR_API_KEY`（备选 `X-Secret-Key`）。缺失、带空格或格式不符合 `mcp_` 前缀都会导致请求失败。
+
+### 1.4 为什么申请时要填用途信息？
+
+酒店价格、库存与订单涉及真实交易链路。为每个开发者分配独立 Key 是为了防恶意调用、保护接口稳定性，也便于价格/库存/订单异常时能及时联系到你。
+
+### 1.5 Key 泄露了怎么办？
+
+立即到 Partner Center 重置或邮件 `contact@rollinggo.ai` 申请作废换新。不要把 Key 提交到 Git 仓库、写进博客或贴到 issue，生产环境用环境变量管理。
+
+## 2. 接入与配置
+
+### 2.1 支持哪些客户端？配置在哪看？
+
+主流 MCP 客户端均支持。在 [酒店 MCP 产品页](https://rollinggo.store/solutions/hotel) 点击客户端图标即可复制对应 `.mcp.json` / CLI 命令 / TOML 配置，覆盖 Cursor、Windsurf、Copilot、Kiro、Codex、OpenCode、Trae、Manus、Qoder、Claude Code 等十余个主流工具。
+
+### 2.2 常用客户端配置示例
+
+**Claude Code（终端）**
+
+```bash
+claude mcp add RollingGo-Hotel \
+  --transport http \
+  --header "Authorization: Bearer YOUR_API_KEY" \
+  https://mcp.rollinggo.cn/mcp
+```
+
+**Cursor / Windsurf / Trae（项目根目录 `.cursor/mcp.json` 等）**
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+**Codex（`.codex/config.toml`）**
+
+```toml
+[mcp_servers.RollingGo-Hotel]
+url = "https://mcp.rollinggo.cn/mcp"
+http_headers = { "Authorization" = "Bearer YOUR_API_KEY" }
+```
+
+### 2.3 Cherry Studio
+
+Cherry Studio 打开「设置 → MCP 服务 → 添加」，类型选 HTTP（URL 填 `https://mcp.rollinggo.cn/mcp`），鉴权选 Bearer 并填入 Key；或写入如下配置：
+
+```json
+{
+  "mcpServers": {
+    "RollingGo-Hotel": {
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### 2.4 Cline（VS Code 扩展）
+
+在 VS Code 用户级 `settings.json` 增加 `cline.mcp.servers`：
+
+```json
+{
+  "cline.mcp.servers": [
+    {
+      "name": "RollingGo-Hotel",
+      "type": "http",
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": { "Authorization": "Bearer YOUR_API_KEY" },
+      "enabled": true
+    }
+  ]
+}
+```
+
+保存后重启 VS Code，在 Cline 面板提问即可触发 `searchHotels`。
+
+### 2.5 工具列表不显示怎么办？
+
+依次检查：① 配置里 `type` 必须为 `streamable-http`（Claude CLI 命令行场景用 `http`）；② API Key 放入 Headers 而非 URL 或正文，且无前后空格；③ 保存后重启客户端 / 点击刷新 MCP 列表；④ 用 cURL 先连通 `tools/list` 排除服务端问题。
+
+---
+
+## 3. 查询与数据
+### 3.1 `place` 和 `placeType` 必须匹配吗？
+
+必须匹配。例如 `place: "上海外滩"` 应配 `placeType: "景点"`，配成 `"城市"` 会返回整个上海市的酒店而不是外滩附近。支持城市、景点、机场、火车站、地铁站、区/县、详细地址等地点类型。
+
+### 3.2 返回的价格是最终成交价吗？
+
+`searchHotels` 返回的是参考展示价，用于初筛。选中心仪酒店后调用 `getHotelDetail` 查看实时房型与价格，下单前用 `hotelPriceConfirm` 锁定最终零售价，避免价格漂移。
+
+### 3.3 数据是爬虫抓的吗？
+
+不是。RollingGo 酒店MCP覆盖200 万+ 酒店、11 万+ 直签酒店直连、500+ 全球供应商，价格与库存实时响应，是官方数据源直连。
+
+### 3.4 酒店标签怎么用？
+
+先调用 `getHotelSearchTags` 获取当前可用的标签字典，再放入 `hotelTags.preferredTags`（偏好）、`requiredTags`（强约束）、`excludedTags`（排除）使用。标签字典会更新，直接写死标签可能导致筛选失效。
+
+### 3.5 查到的数据能直接用吗？
+
+`searchHotels` / `getHotelDetail` 返回的展示价仅供查询比对，真实可订价格以下单前的 `hotelPriceConfirm` 为准。
+
+## 4. 下单与交易
+
+### 4.1 API Key 版能直接在对话里付款吗？
+
+API Key 版提供查询与网页下单，用户可至rollinggo酒店展示H5页面下单；需要「搜索 → 锁房 → 下单 → 订单查询」全流程 Agent 内闭环，请使用 OAuth 2.0 授权码模式（共 7 个工具），商务对接：`contact@rollinggo.ai`。
+
+### 4.2 OAuth 版具体提供哪些工具？
+
+`getHotelSearchTags`、`searchHotels`、`getHotelDetail`、`hotelPriceConfirm`、`createHotelBookingWithPaymentURL`、`searchHotelOrders`、`getHotelOrderDetail`。
+
+### 4.3 订单和售后信息在哪查？
+
+走 OAuth 模式用 `searchHotelOrders` 查列表、`getHotelOrderDetail` 查全量详情（含酒店侧确认号、入住人、床型、支付截止、免费取消截止、经纬度等）；API Key 版在 Partner Center 查看订单与收益。
+
+### 4.4 为什么价格或库存偶尔变化？
+
+价格与库存是实时的，高峰期或缓存窗口内可能出现参考价波动。合理做法是缓存降级 + 下单前二次校验，避免以陈旧价格直接成交。
+
+## 5. 计费与返佣
+
+### 5.1 有调用次数限制吗？
+
+没有现阶段的调用量限制，当前完全免费。
+
+### 5.2 Partner 如何赚钱？
+
+每个 Key 都对应一个 Partner 账户。你可以在 Partner Center 按国家/地区设置加价比例，凡是用户通过你的 Key 或推广链接完成的订单，加价部分即你的佣金，订单、收益、提现状态实时可查、可灵活提现。
+
+### 5.3 跨币种价格如何返回？
+
+通过 `localeParam` / `countryCode` 指定国家与币种；跨境场景价格与返佣按 Partner 后台设置结算。
+
+## 6. 常见报错排查
+
+### 6.1 cURL 调用返回 400？
+
+多半是少了 `Accept` 头。必须带 `-H "Accept: application/json, text/event-stream"`，否则服务端返回 400。
+
+### 6.2 返回 401 / 认证失败？
+
+检查：Key 是否为 `mcp_` 开头且无前后空格；是否放在 `Authorization: Bearer` Header 里（不要拼进 URL）；Key 是否过期或被重置。
+
+### 6.3 海外酒店返回语言或价格不对？
+
+显式传 `localeParam`（语言）与 `countryCode`（ISO 3166-1 二字码），例如日文场景传 `ja` 与 `JP`。
+
+## 7. 相关链接
+
+- [酒店 MCP 快速开始](/docs/mcp-docs/quick-start)
+- [MCP Tool 参考](/docs/mcp-docs/mcp-tool-reference)
+- [免费申请 API Key](/apply)
+
+---
