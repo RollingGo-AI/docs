@@ -42,3 +42,52 @@ nav#sidebar-content {
   margin-top: 0.5rem !important;
   margin-bottom: 0.25rem !important;
 }
+
+/* 顶部导航“返回官网”小房子图标链接 */
+a[href="https://rollinggo.store"] span,
+a[href="https://global.rollinggo.store"] span {
+  display: none !important;
+}
+
+a[href="https://rollinggo.store"],
+a[href="https://global.rollinggo.store"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.35rem 0.5rem !important;
+  border-radius: 0.375rem !important;
+  color: rgb(107 114 128) !important;
+  transition: all 0.2s ease !important;
+}
+
+a[href="https://rollinggo.store"]:hover,
+a[href="https://global.rollinggo.store"]:hover {
+  color: rgb(17 24 39) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.dark a[href="https://rollinggo.store"]:hover,
+html.dark a[href="https://global.rollinggo.store"]:hover {
+  color: rgb(243 244 246) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 如果 Mintlify 原生渲染了 svg，确保其尺寸与对齐 */
+a[href="https://rollinggo.store"] svg,
+a[href="https://global.rollinggo.store"] svg {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+  display: block !important;
+}
+
+/* 如果 Mintlify 未在导航栏直接输出 svg，通过伪元素无缝呈现房子图标保底 */
+a[href="https://rollinggo.store"]:not(:has(svg))::before,
+a[href="https://global.rollinggo.store"]:not(:has(svg))::before {
+  content: "" !important;
+  display: inline-block !important;
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+  background-color: currentColor !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Cpolyline points='9 22 9 12 15 12 15 22'/%3E%3C/svg%3E") no-repeat center / contain !important;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Cpolyline points='9 22 9 12 15 12 15 22'/%3E%3C/svg%3E") no-repeat center / contain !important;
+}
