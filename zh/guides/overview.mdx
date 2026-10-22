@@ -1,42 +1,56 @@
 ---
 title: "模式选型与概览"
 sidebarTitle: "模式选型与概览"
-description: "全面对比 RollingGo 酒店 MCP 的跳转模式与端内闭环模式，助您快速完成技术选型。"
 icon: "compass"
 ---
 
-RollingGo 酒店开放平台为合作伙伴提供 **跳转模式** 与 **端内闭环模式** 两种核心接入形态。开发者可根据自身产品定位、交互形态与交易诉求灵活选择。
+> **更新日期**：2026-10-16
+> **适用环境**：生产环境（正式上线）
+> **Tool 数量**：9 个
+> **字段级底层契约**：参见《RollingGo Hotel MCP Tool 字段参考文档》。
 
 ---
 
-## 两种接入模式核心对比
+# Part 1 · B 端视角：接入模式选型与配置
 
-| 比较维度 | 跳转模式（轻量查询） | 端内闭环模式（交易闭环） |
-| :--- | :--- | :--- |
-| **可用工具数量** | **3 个工具**（搜索、房型详情、搜索标签） | **9 个工具**（从搜索到下单支付及售后退改） |
-| **智能体核心角色** | 负责酒店搜索与推荐，推送预订链接卡片 | 引导用户完成“搜 → 查 → 锁 → 下单 → 支付 → 查单 → 退订”全流程 |
-| **下单与支付承载** | 用户点击链接跳转 **RollingGo 网页或微信小程序** 自行下单支付 | 在智能体对话内生单，用户点击**安全收银台链接**完成支付 |
-| **价格锁定能力** | 暂不支持锁价 | 支持 `hotelPriceConfirm` 锁定 30 分钟价格与房态，返回常住人画像 |
-| **订单管理能力** | 用户在 RollingGo 网页或小程序自行查看 | 支持在对话中直接查询订单列表概要与多维结构化详情 |
-| **售后退订能力** | 需用户跳转小程序或网页处理 | 支持两阶段安全取消（`preCancelHotelBooking` 罚金试算 + `confirmCancelHotelBooking` 执行退订） |
-| **鉴权认证方式** | **API Key 模式**（Header: `Authorization: Bearer <API_KEY>`） | **OAuth 2.0 / 2.1 模式**（终端用户授权码模式与 PKCE 扩展） |
-| **接入成本** | 极简（5 分钟完成配置） | 标准（企业级商业闭环） |
-| **推荐适用场景** | • 信息检索与比价聚合类智能体<br/>• 轻量级导航与流量分发插件<br/>• 无需介入交易闭环的场景 | • 商业化深度合作的 AI 旅游助手<br/>• 品牌官方对话式订房应用<br/>• 追求高转化与全流程服务的交易型智能体 |
+## 1.1 两种接入模式概览与核心区别
+
+RollingGo 酒店开放平台为合作伙伴提供 **跳转模式** 与 **闭环模式** 两种核心接入形态：
+
+### 双模式核心差异对比
+
+
+| 比较维度           | 跳转模式                                                                     | 端内闭环模式                                                                                        |
+| :------------------- | :----------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| **可用 Tool 数量** | **3 个 Tool**（搜索、房型详情、搜索标签）                                    | **9 个 Tool**（从搜索到下单支付及售后退改）                                                         |
+| **Agent 核心角色** | 仅负责酒店搜索与房型推荐，推送预订链接卡片                                   | 引导用户完成“搜 → 查 → 锁 → 下单 → 支付 → 查单 → 售后退订”全流程                            |
+| **下单与支付承载** | 用户点击跳转**RollingGo H5 / 微信小程序** 自行下单支付                       | 在 Agent 对话内生单，用户点击**收银台 `paymentUrl`** 支付                                           |
+| **锁价能力**       | ❌ 无锁价能力                                                                | ✅ 支持`hotelPriceConfirm` 锁价（30 分钟）并返回常住人画像                                          |
+| **订单管理能力**   | 用户在 openapi 接口 / 小程序 / H5 自行查看                                   | ✅ 支持`searchHotelOrders`（概要列表）与 `getHotelOrderDetail`（多维结构化详情）                    |
+| **售后取消能力**   | ❌ 需跳转小程序 / H5 处理退订                                                | ✅**支持两阶段安全取消**（`preCancelHotelBooking` 罚金试算 + `confirmCancelHotelBooking` 执行退订） |
+| **接入成本**       | 极简                                                                         | 标准                                                                                                |
+| **推荐适用场景**   | • 信息检索 / 比价聚合类 Agent• 轻量级导航分流插件• 无需介入交易流程的场景 | • 商业化深度合作的 AI 旅游助手• 品牌官方对话式订房应用• 追求高转化与全流程服务的交易型 Agent     |
 
 ---
 
-## 模式一：跳转模式时序
+## 1.2 模式一：跳转模式（只查，bookingUrl 承接下单）
 
-在跳转模式下，智能体仅调用查询类工具，用户通过卡片中的 `bookingUrl` 跳转至 RollingGo 官方网页或微信小程序完成预订与支付：
+### 交互特征
+
+1. Agent 仅调用 `getHotelSearchTags`、`searchHotels` 与 `getHotelDetail` 3 个查询类 Tool；
+2. Agent 不创建订单、不发起支付，能力止步于“搜索推荐 → 推送预订链接”；
+3. 用户点击卡片中的 `bookingUrl` 跳转至 RollingGo H5 或小程序自行选房、填写个人信息并完成支付。
+
+### 跳转模式交互时序图
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as 终端用户
-    participant Agent as AI 智能体
-    participant RG as RollingGo MCP 服务
-    participant WebApp as RollingGo 网页/小程序
-    participant Pay as 支付渠道 (微信/支付宝)
+    actor User as "终端用户"
+    participant Agent as "AI Agent 客户端"
+    participant RG as "RollingGo MCP 服务"
+    participant H5 as "RollingGo H5 / 小程序"
+    participant Pay as "支付渠道 (微信/支付宝)"
 
     User->>Agent: "帮我找上海外滩的五星酒店，明晚1晚"
     Agent->>RG: 调用 searchHotels(上海, 外滩, 五星)
@@ -44,96 +58,193 @@ sequenceDiagram
     Agent-->>User: 推荐酒店列表及预订卡片
 
     User->>Agent: "选第一家，帮我订一下"
-    Agent-->>User: "已为您生成预订入口，请点击下方链接完成下单："
-    Agent->>User: 下发 bookingUrl 卡片
+    Agent-->>User: "已为您找到预订入口，请点击链接进入页面完成下单："
+    Agent->>User: 下发 bookingUrl 链接卡片
 
-    User->>WebApp: 点击链接跳转网页或小程序
-    User->>WebApp: 自行选房型、填写入住人、提交订单
-    User->>Pay: 在收银台完成付款
-    Pay-->>WebApp: 支付成功
-    WebApp-->>User: 展示订单确认与入住凭证
+    User->>H5: 点击链接跳转 H5/小程序
+    User->>H5: 自行选房型、填入住人、提交订单
+    User->>Pay: 在 H5 内唤起收银台完成支付
+    Pay-->>H5: 支付成功
+    H5-->>User: 展示订单确认与入住凭证
+
+    Note over User, Agent: 订单管理 - 跳转模式无订单接口，Agent 引导用户在小程序中查看
 ```
 
 ---
 
-## 模式二：端内闭环模式时序
+## 1.3 模式二：闭环模式（对话内全链路闭环）
 
-在端内闭环模式下，智能体完整使用全部 9 个工具，实现从信息检索、验价锁价到履约查单、售后退订的全周期闭环：
+### 交互特征
+
+1. 完整使用全部 **9 个 Tool**，实现从信息检索、锁价下单到履约查单、售后退改的完整商业闭环；
+2. **锁价防跳价**：下单前通过 `hotelPriceConfirm` 锁定 30 分钟实时价格与房态，并返回智能预填常住旅客画像 `guestProfile`；
+3. **安全收银台支付**：生单后下发收银台链接（`paymentUrl`），用户点击即可完成支付，资金安全合规；
+4. **全周期订单管理**：用户可随时在对话中查询订单列表（`searchHotelOrders`）及获取多维结构化详情凭证（`getHotelOrderDetail`）；
+5. **两阶段安全取消机制（Quote-Execute）**：新增 `preCancelHotelBooking` 预取消试算罚金（派发 10 分钟时效凭证 `confirmId`），用户确认后调用 `confirmCancelHotelBooking` 执行最终不可逆取消。仅免费取消支持在线闭环，产生罚金或不可退订单自动转接客服。
+
+### 闭环模式交互时序图
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as 终端用户
-    participant Agent as AI 智能体
-    participant MCP as RollingGo MCP 服务
-    participant Cashier as 安全收银台
+    actor User as "终端用户"
+    participant Agent as "AI Agent 客户端"
+    participant MCP as "RollingGo MCP 服务"
+    participant Cashier as "Dida 安全收银台"
 
-    Note over User, Cashier: 第一阶段 - 搜索与房型精准筛选
-    User->>Agent: "帮我找杭州西溪湿地附近的4星以上酒店，含双早能免费取消"
-    Agent->>MCP: searchHotels + getHotelDetail(精准筛选餐食与取消政策)
-    MCP-->>Agent: 服务端过滤后返回房型详情
-    Agent-->>User: 结构化推荐房型与实时价格
+    Note over User, Cashier: 第一阶段 - 多语言多币种搜索
+    User->>Agent: "帮我找西溪湿地附近的4星级以上酒店，预算800元内"
+    Agent->>MCP: searchHotels(place="西溪湿地", hotelTags={maxPricePerNight:800})
+    MCP-->>Agent: 返回酒店推荐列表 (支持多语言与实时换汇)
+    Agent-->>User: 结构化推荐酒店列表与参考起价
 
-    Note over User, Cashier: 第二阶段 - 实时验价与价格锁定 (30分钟)
+    Note over User, Cashier: 第二阶段 - 查看详情与房型精准筛选
+    User->>Agent: "看下菲住布渴，只要含双份早餐且能免费取消的"
+    Agent->>MCP: getHotelDetail(hotelId=102906, filter={mealType:"DOUBLE_BREAKFAST", cancelable:"CANCELABLE"})
+    MCP-->>Agent: 服务端精准过滤，返回符合条件的 roomRatePlans
+    Agent-->>User: 展示筛选后的房型图文卡片与设施详情
+
+    Note over User, Cashier: 第三阶段 - 实时验价与价格锁定 (锁价 30 分钟)
     User->>Agent: "帮我订这个行政大床房"
-    Agent->>MCP: hotelPriceConfirm(hotelID, ratePlanID)
-    MCP-->>Agent: 锁定总价与房态，返回 referenceNo 与预填常住人画像
-    Agent-->>User: 提示锁定总价与退改政策，确认入住人
+    Agent->>MCP: hotelPriceConfirm(hotelID=102906, ratePlanID="RP_992019_DELUXE_BF2")
+    MCP-->>Agent: 校验库存，返回 referenceNo + 最终锁定总价 + guestProfile
+    Agent-->>User: 提示最终总价与退改政策，请求确认住客信息
 
-    Note over User, Cashier: 第三阶段 - 生单与收银台支付
+    Note over User, Cashier: 第四阶段 - 生单与收银台支付
     User->>Agent: "确认预订，住客张三，手机号 13800138000"
-    Agent->>MCP: createHotelBookingWithPaymentURL(referenceNo, 联系人, 住客)
-    MCP-->>Agent: 生成订单，返回 orderNo 与支付凭证
-    Agent-->>User: 返回订单号与支付链接，引导 30 分钟内付款
-    User->>Cashier: 点击 paymentUrl 或拉起微信收银台完成支付
-    Cashier-->>User: 支付成功
+    Agent->>MCP: createHotelBookingWithPaymentURL(referenceNo, contact, guestList)
+    MCP-->>Agent: 生成订单，返回 orderNo + paymentUrl
+    Agent-->>User: 返回订单号与支付链接，引导在 30 分钟内完成支付
 
-    Note over User, Cashier: 第四阶段 - 订单查询与凭证详情
+    User->>Cashier: 点击 paymentUrl，在 Dida 收银台完成支付
+    Cashier-->>User: 支付成功，下发入住凭证
+
+    Note over User, Cashier: 第五阶段 - 订单查询与凭证详情
     User->>Agent: "查一下我刚刚下的酒店订单"
-    Agent->>MCP: getHotelOrderDetail(orderNo)
-    MCP-->>Agent: 返回订单完整详情（入住凭证号、酒店物理地址、导航坐标、联系电话）
+    Agent->>MCP: getHotelOrderDetail(orderNo="H178969795522549201")
+    MCP-->>Agent: 返回订单完整详情（含入离凭证、地图经纬度、酒店电话）
     Agent-->>User: 渲染结构化订单卡片
 
-    Note over User, Cashier: 第五阶段 - 两阶段安全售后取消
-    User->>Agent: "行程有变，帮我把刚才的订单退订"
-    Agent->>MCP: preCancelHotelBooking(orderNo)
-    MCP-->>Agent: 试算罚金=0，派发 10 分钟有效凭证 confirmId
-    Agent-->>User: 提示：“当前可免费取消，是否确认？”
+    Note over User, Cashier: 第六阶段 - 两阶段安全售后取消
+    User->>Agent: "临时有事去不了，帮我把刚才的订单取消退订"
+    Agent->>MCP: preCancelHotelBooking(orderNo="H178969795522549201")
+    MCP-->>Agent: 校验罚金=0，派发 10 分钟 confirmId: "CNF_..."，canCancel=true
+    Agent-->>User: 明确提示：“当前可免费取消，凭证10分钟有效，是否确认取消？”
     User->>Agent: "确认取消"
-    Agent->>MCP: confirmCancelHotelBooking(orderNo, confirmId)
-    MCP-->>Agent: 执行取消成功，房款原路退回
-    Agent-->>User: 提示订单已退订成功
+    Agent->>MCP: confirmCancelHotelBooking(orderNo, bookingId, confirmId)
+    MCP-->>Agent: 执行取消成功 (success=true, code=2000)
+    Agent-->>User: 提示订单已成功取消，房款原路退回
 ```
 
 ---
 
-## 账号开通与凭证获取渠道
+## 1.4 账号开通与凭证获取渠道
 
-| 申请途径 | 适用对象 | 开通方式 | 交付凭证 |
-| :--- | :--- | :--- | :--- |
-| **开放平台自主申请** | 全体开发者、达人与独立团队 | 前往 [国内站](https://partner.rollinggo.cn) 或 [国际站](https://partner.rollinggo.ai) 线上自主注册 | 即时开通 `API Key` 或配置 OAuth 应用 |
-| **商务签约直接交付** | 签约企业客户、特约合作方 | 由 RollingGo 运营团队在线下直接建立并交付 | **API Key 模式**：`API Key` 及端点<br/>**OAuth 模式**：`clientId`、`clientSecret` 及回调配置 |
+合作伙伴获取接入凭证支持以下两种途径：
 
-> 提示：已由 RollingGo 运营人员直接交付接入凭证的企业客户，**无需在开放平台重复注册**，直接使用凭证配置客户端即可上线。
+### 途径一：开放平台自主申请（线上即时开通）
+
+* 🇨🇳 **国内站（中文）**：[https://partner.rollinggo.cn](https://partner.rollinggo.cn)
+* 🌐 **国际站（英文）**：[https://partner.rollinggo.ai](https://partner.rollinggo.ai)
+
+### 途径二：商务与企业定制账户
+
+* **适用对象**：商务签约合作伙伴、企业定制客户、特约开发者。
+* **开通方式**：由 RollingGo 运营团队在管理后台直接开通账号，并通过安全渠道线下直接交付：
+  * **API Key 模式交付物**：专属 `API Key`（格式如 `mcp_xxxxx`）及对应服务节点端点；
+  * **OAuth 2.1 模式交付物**：`clientId`、`clientSecret` 及预注册回调地址配置。
+* **快速指引**：已由运营人员直接提供凭证的客户，**无需在开放平台重复注册**，直接查阅 [1.5 服务节点与接入端点](#15-服务节点与接入端点) 与 [1.6 Agent 客户端配置示例](#16-agent-客户端配置示例) 即可快速上线。
 
 ---
 
-## 服务节点与接入端点清单
+### 凭证鉴权模式说明
 
-### 测试环境
+#### 1. API Key 模式（推荐 · 快速接入）
 
-| 服务节点 | 鉴权模式 | 服务端点 URL | 默认语言与币种 |
-| :--- | :--- | :--- | :--- |
-| **国内测试节点** | API Key 模式 | `https://mcp-test.rollinggo.cn/mcp` | 中文 (`zh-CN`) / 人民币 (`CNY`) |
-| **国内测试节点** | OAuth 2.0 模式 | `https://mcp-test.rollinggo.cn/mcp/hotel` | 中文 (`zh-CN`) / 人民币 (`CNY`) |
-| **国际测试节点** | API Key 模式 | `https://mcp-test.rollinggo.ai/mcp` | 英文 (`en`) / 美元 (`USD`) |
-| **国际测试节点** | OAuth 2.0 模式 | `https://mcp-test.rollinggo.ai/mcp/hotel` | 英文 (`en`) / 美元 (`USD`) |
+* **适用场景**：开发者工具、Claude CLI / Desktop、企业自建 Agent、自动化工作流。
+* **请求鉴权**：HTTP 请求头携带 `Authorization: Bearer <API_KEY>`。
 
-### 生产环境
+#### 2. OAuth 2.1 模式（终端用户授权）
 
-| 服务节点 | 鉴权模式 | 服务端点 URL | 默认语言与币种 | 核心特征说明 |
-| :--- | :--- | :--- | :--- | :--- |
-| **国内正式节点** | API Key 模式 | `https://mcp.rollinggo.cn/mcp` | 中文 (`zh-CN`) / 人民币 (`CNY`) | 固定中文与人民币，`placeType` 为中文枚举 |
-| **国内正式节点** | OAuth 2.0 模式 | `https://mcp.rollinggo.cn/mcp/hotel` | 中文 (`zh-CN`) / 人民币 (`CNY`) | 终端用户强鉴权，订单天然隔离防越权 |
-| **国际正式节点** | API Key 模式 | `https://mcp.rollinggo.ai/mcp` | 英文 (`en`) / 美元 (`USD`) | 支持多语言与 25 种外币实时换汇，`placeType` 为英文枚举 |
-| **国际正式节点** | OAuth 2.0 模式 | `https://mcp.rollinggo.ai/mcp/hotel` | 英文 (`en`) / 美元 (`USD`) | 国际站终端用户授权登录体系 |
+* **适用场景**：面向 C 端公众用户的客户端 App、Web 应用、多租户 SaaS 平台。
+* **配置要点**：需配置 PKCE 回调地址（Web 端 `redirect_uri` 或 本地客户端环回端口 `callbackPort`）。
+* **请求鉴权**：标准 OAuth 2.1 授权码流程获取用户级 Access Token 并在请求头中携带。
+
+---
+
+## 1.5 服务节点与接入端点
+
+根据接入环境与鉴权模式的不同，服务端点 URL 区分如下：
+
+### 测试环境（Staging / 联调验证）
+
+
+| 服务节点         | 接入鉴权模式       | 服务端点 URL                                                   | 默认语言与币种                  |
+| :----------------- | :------------------- | :--------------------------------------------------------------- | :-------------------------------- |
+| **国内测试节点** | **API Key 模式**   | `https://mcp-test.rollinggo.cn/mcp`           | 中文 (`zh-CN`) / 人民币 (`CNY`) |
+|                  | **OAuth 2.0 模式** | `https://mcp-test.rollinggo.cn/mcp/hotel` | 中文 (`zh-CN`) / 人民币 (`CNY`) |
+| **国际测试节点** | **API Key 模式**   | `https://mcp-test.rollinggo.ai/mcp`           | 英文 (`en`) / 美元 (`USD`)      |
+|                  | **OAuth 2.0 模式** | `https://mcp-test.rollinggo.ai/mcp/hotel` | 英文 (`en`) / 美元 (`USD`)      |
+
+### 生产环境（Production / 正式上线）
+
+
+| 服务节点         | 接入鉴权模式       | 服务端点 URL                         | 默认语言与币种                  | 核心特征说明                                                                                    |
+| :----------------- | :------------------- | :------------------------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------------ |
+| **国内正式节点** | **API Key 模式**   | `https://mcp.rollinggo.cn/mcp`       | 中文 (`zh-CN`) / 人民币 (`CNY`) | 固定中文与人民币，`placeType` 为中文枚举，邮箱必填                                              |
+|                  | **OAuth 2.0 模式** | `https://mcp.rollinggo.cn/mcp/hotel` | 中文 (`zh-CN`) / 人民币 (`CNY`) | 终端用户强鉴权，订单天然隔离防越权                                                              |
+| **国际正式节点** | **API Key 模式**   | `https://mcp.rollinggo.ai/mcp`       | 英文 (`en`) / 美元 (`USD`)      | 支持`localeParam: { currency, language }`（25 种货币/中英日），`placeType` 为英文枚举，邮箱选填 |
+|                  | **OAuth 2.0 模式** | `https://mcp.rollinggo.ai/mcp/hotel` | 英文 (`en`) / 美元 (`USD`)      | 国际站终端用户授权登录体系                                                                      |
+
+---
+
+## 1.6 Agent 客户端配置示例
+
+### 1.6.1 API Key 模式配置（以 Claude Desktop / Claude CLI 为例）
+
+在项目根目录或全局配置中创建 `.mcp.json`（或 `claude_desktop_config.json`）：
+
+```jsonc
+{
+  "mcpServers": {
+    "rollinggo-hotel": {
+      "type": "http",
+      // 国内节点使用 https://mcp.rollinggo.cn/mcp，国际节点使用 https://mcp.rollinggo.ai/mcp
+      "url": "https://mcp.rollinggo.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer mcp_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+通过 Claude CLI 命令一行添加：
+
+```bash
+claude mcp add \
+  --transport http \
+  --header "Authorization: Bearer mcp_your_api_key_here" \
+  RollingGo-Hotel \
+  https://mcp.rollinggo.ai/mcp
+```
+
+### 1.6.2 OAuth 2.1 模式配置（以 Claude Code / Web 客户端为例）
+
+```jsonc
+{
+  "mcpServers": {
+    "rollinggo-hotel": {
+      "type": "http",
+      "url": "https://mcp.rollinggo.cn/mcp/hotel",
+      "oauth": {
+        "clientId": "your-client-id",
+        // 本地客户端使用环回端口，Web 客户端配置完整 redirect_uri
+        "callbackPort": 55082
+      }
+    }
+  }
+}
+```
+
+---
