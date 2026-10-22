@@ -1,0 +1,145 @@
+---
+title: "闭环模式接入"
+sidebarTitle: "闭环模式接入"
+description: "在 AI 智能体对话内实现从酒店搜索、30分钟价格锁定、生单、多端收银台支付到订单详情凭证及两阶段退订的商业全闭环。"
+icon: "arrows-rotate"
+---
+
+闭环模式是 RollingGo 酒店开放平台为生产级商业智能体提供的全链路解决方案。用户无需跳出对话，智能体通过调用完整的 **9 个核心工具**，在对话流内完整实现“多维搜索 → 房型精准筛选 → 30分钟价格锁定 → 生单支付 → 订单详情与入住凭证 → 两阶段安全取消退款”。
+
+---
+
+## 接入前置：用户级授权 (OAuth 2.0)
+
+闭环模式涉及订单创建、资金支付、真实住客信息与退订资产，必须使用 **OAuth 2.0 / 2.1 授权码模式与 PKCE 扩展** 获取终端用户授权的 Access Token。
+
+* 详细协议流程与端点配置，请参阅 [OAuth 2.0 开发者指南](/zh/guides/oauth)。
+* 请求头携带方式：`Authorization: Bearer <ACCESS_TOKEN>`。
+
+---
+
+## 闭环核心阶段全流程串联
+
+端内闭环模式包含 6 个核心交互阶段：
+
+```
+[阶段一: 搜索与筛选]  -->  [阶段二: 验价与锁价]  -->  [阶段三: 生单与收银台]
+      searchHotels            hotelPriceConfirm       createHotelBookingWithPaymentURL
+      getHotelDetail
+             │
+             ▼
+[阶段四: 安全支付完成] -->  [阶段五: 查单与凭证]  -->  [阶段六: 两阶段安全退订]
+      Web (paymentUrl)        getHotelOrderDetail     preCancelHotelBooking (试算凭证)
+      小程序 (miniProgram)    searchHotelOrders       confirmCancelHotelBooking (执行)
+```
+
+---
+
+### 第一阶段：多条件搜索与房型精准筛选
+
+用户提出住宿需求后，智能体依次调用 `searchHotels` 与 `getHotelDetail`：
+
+1. **`searchHotels`**：通过目的地、地标、星级、价格区间进行初筛；
+2. **`getHotelDetail`**：支持服务端精准过滤（如 `filter: { mealType: "DOUBLE_BREAKFAST", cancelable: "CANCELABLE" }`），直接返回符合条件的房型套餐 (`roomRatePlans`)，无需大模型自行遍历处理。
+
+---
+
+### 第二阶段：实时验价与价格锁定 (30 分钟)
+
+为避免酒店库存变动导致的跳价或满房问题，用户选定心仪房型后，智能体**必须调用 `hotelPriceConfirm` 进行锁价**：
+
+* **核心出参**：
+  * `referenceNo`：本次验价锁定唯一凭证（生单阶段必须原样回传）；
+  * `finalTotalAmount`：锁定的最终总价（含税费）；
+  * `guestProfile`：平台根据历史画像返回的推荐入住人信息（方便用户一键确认快速生单）。
+* **时效机制**：价格与房态锁定有效期为 **30 分钟**。
+
+```json
+{
+  "tool": "hotelPriceConfirm",
+  "arguments": {
+    "hotelID": 102906,
+    "ratePlanID": "RP_992019_DELUXE_BF2",
+    "numOfRooms": 1,
+    "dateParam": {
+      "checkInDate": "2026-11-01",
+      "checkOutDate": "2026-11-02"
+    },
+    "occupancyDetails": [
+      {
+        "roomNum": 1,
+        "adultCount": 2,
+        "childCount": 0
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 第三阶段：生单与下发收银台支付
+
+用户确认总价与入住人后，智能体调用 `createHotelBookingWithPaymentURL` 创建正式订单：
+
+* **核心入参**：第二阶段获得的 `referenceNo`、联系人信息与住客列表；
+* **支付凭证互斥下发**：
+  * **Web/浏览器环境**：返回安全收银台直链 **`paymentUrl`**，用户点击直接打开收银台完成微信或支付宝支付；
+  * **小程序/原生环境**：返回原生拉起参数 **`miniProgramPayInfo`**，直接调起微信收银台；
+  * 详细适配规范请参阅 [收银台与支付多端适配](/zh/guides/payment)。
+
+```json
+{
+  "tool": "createHotelBookingWithPaymentURL",
+  "arguments": {
+    "referenceNo": "REF_20261101_HZ_99812",
+    "contact": {
+      "firstName": "三",
+      "lastName": "张",
+      "phone": "13800138000",
+      "email": "zhangsan@example.com"
+    },
+    "guestList": [
+      {
+        "roomNum": 1,
+        "guestInfo": [
+          {
+            "firstName": "三",
+            "lastName": "张",
+            "isAdult": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 第四阶段：订单查询与凭证详情
+
+用户完成支付后，可随时在智能体中查询订单动态：
+
+1. **`searchHotelOrders`**：查询名下订单概要列表（支持按状态过滤，轻量输出防止模型上下文膨胀）；
+2. **`getHotelOrderDetail`**：根据 `orderNo` 查询单笔订单的完整详情，包含：
+   * 酒店确认号 (`hotelConfirmationNo`) 与入住凭证；
+   * 酒店物理地址、导航坐标 (`latitude`, `longitude`) 与前台电话；
+   * 最新支付状态与退改规则描述。
+
+> 注意：订单支付成功或失效后，出参中的 `paymentUrl` 会自动安全置为 `null`，避免客户端再次误引导跳转。
+
+---
+
+### 第五阶段：两阶段安全售后取消机制
+
+为保障用户资金安全与避免大模型误操作，取消退订采用严格的**两阶段确认机制（Quote-Execute）**：
+
+#### 步骤 1：预取消试算与凭证派发 (`preCancelHotelBooking`)
+智能体在用户表达退订意图后，先调用 `preCancelHotelBooking`：
+* 系统试算取消罚金（`penaltyAmount`）并校验是否允许在线退订；
+* 派发时效为 **10 分钟** 的专属凭证 **`confirmId`**。
+
+#### 步骤 2：用户确认后最终执行 (`confirmCancelHotelBooking`)
+智能体向用户明确提示罚金试算结果（如“当前为免费取消，罚金 ¥0.00”），用户明确确认取消后，智能体携带 `orderNo`、`bookingId` 和 `confirmId` 调用 `confirmCancelHotelBooking` 执行不可逆取消。
+* 执行成功后，房款将通过原支付渠道自动原路退回。

@@ -38,30 +38,36 @@
             "tab": "Documentation",
             "groups": [
               {
-                "group": "MCP Integration Guide",
+                "group": "Getting Started",
                 "pages": [
-                  "guides/quick-start",
-                  "guides/tools",
-                  "guides/oauth",
-                  "guides/mini-program"
+                  "guides/overview",
+                  "guides/redirect-mode",
+                  "guides/closed-loop-mode"
                 ]
               },
               {
-                "group": "Monetization & Partners",
+                "group": "API & Capabilities",
+                "pages": [
+                  "guides/tools",
+                  "guides/oauth",
+                  "guides/payment"
+                ]
+              },
+              {
+                "group": "Client Configuration",
+                "pages": [
+                  "clients/config"
+                ]
+              },
+              {
+                "group": "Partnership & Monetization",
                 "pages": [
                   "partners/kol",
                   "partners/developers"
                 ]
               },
               {
-                "group": "Client Config & Auth",
-                "pages": [
-                  "clients/config",
-                  "clients/auth-comparison"
-                ]
-              },
-              {
-                "group": "FAQ",
+                "group": "Support",
                 "pages": [
                   "faq"
                 ]
@@ -106,30 +112,36 @@
             "tab": "使用文档",
             "groups": [
               {
-                "group": "MCP 接入指南",
+                "group": "接入指南",
                 "pages": [
-                  "zh/guides/quick-start",
-                  "zh/guides/tools",
-                  "zh/guides/oauth",
-                  "zh/guides/mini-program"
+                  "zh/guides/overview",
+                  "zh/guides/redirect-mode",
+                  "zh/guides/closed-loop-mode"
                 ]
               },
               {
-                "group": "变现与合作指南",
+                "group": "接口与能力",
+                "pages": [
+                  "zh/guides/tools",
+                  "zh/guides/oauth",
+                  "zh/guides/payment"
+                ]
+              },
+              {
+                "group": "客户端配置",
+                "pages": [
+                  "zh/clients/config"
+                ]
+              },
+              {
+                "group": "商业合作",
                 "pages": [
                   "zh/partners/kol",
                   "zh/partners/developers"
                 ]
               },
               {
-                "group": "客户端接入与比较",
-                "pages": [
-                  "zh/clients/config",
-                  "zh/clients/auth-comparison"
-                ]
-              },
-              {
-                "group": "常见问题解答 (FAQ)",
+                "group": "常见问题",
                 "pages": [
                   "zh/faq"
                 ]
@@ -177,12 +189,12 @@
   "redirects": [
     {
       "source": "/en",
-      "destination": "/guides/quick-start",
+      "destination": "/guides/overview",
       "permanent": true
     },
     {
       "source": "/en/",
-      "destination": "/guides/quick-start",
+      "destination": "/guides/overview",
       "permanent": true
     },
     {
@@ -191,8 +203,38 @@
       "permanent": true
     },
     {
+      "source": "/guides/quick-start",
+      "destination": "/guides/redirect-mode",
+      "permanent": true
+    },
+    {
+      "source": "/zh/guides/quick-start",
+      "destination": "/zh/guides/redirect-mode",
+      "permanent": true
+    },
+    {
+      "source": "/clients/auth-comparison",
+      "destination": "/guides/overview",
+      "permanent": true
+    },
+    {
+      "source": "/zh/clients/auth-comparison",
+      "destination": "/zh/guides/overview",
+      "permanent": true
+    },
+    {
+      "source": "/guides/mini-program",
+      "destination": "/guides/payment",
+      "permanent": true
+    },
+    {
+      "source": "/zh/guides/mini-program",
+      "destination": "/zh/guides/payment",
+      "permanent": true
+    },
+    {
       "source": "/mcp-docs/quick-start",
-      "destination": "/guides/quick-start",
+      "destination": "/guides/redirect-mode",
       "permanent": true
     },
     {
@@ -207,7 +249,7 @@
     },
     {
       "source": "/update/update2",
-      "destination": "/guides/mini-program",
+      "destination": "/guides/payment",
       "permanent": true
     },
     {
@@ -217,7 +259,7 @@
     },
     {
       "source": "/developer-insights/developer-insights-mcp-auth-comparison",
-      "destination": "/clients/auth-comparison",
+      "destination": "/guides/overview",
       "permanent": true
     },
     {
@@ -237,7 +279,7 @@
     },
     {
       "source": "/zh/mcp-docs/quick-start",
-      "destination": "/zh/guides/quick-start",
+      "destination": "/zh/guides/redirect-mode",
       "permanent": true
     },
     {
@@ -252,7 +294,7 @@
     },
     {
       "source": "/zh/update/update2",
-      "destination": "/zh/guides/mini-program",
+      "destination": "/zh/guides/payment",
       "permanent": true
     },
     {
@@ -262,7 +304,7 @@
     },
     {
       "source": "/zh/developer-insights/developer-insights-mcp-auth-comparison",
-      "destination": "/zh/clients/auth-comparison",
+      "destination": "/zh/guides/overview",
       "permanent": true
     },
     {

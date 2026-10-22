@@ -1,0 +1,84 @@
+---
+title: "收银台与支付多端适配"
+sidebarTitle: "收银台与支付适配"
+description: "深入解析 RollingGo 酒店 MCP 收银台架构，掌握 Web 网页支付直链与微信小程序原生支付凭证的互斥与失效机制。"
+icon: "credit-card"
+---
+
+在端内闭环模式下，为了适配 Web 浏览器、独立客户端、微信小程序以及移动端原生 APP 等异构宿主环境的支付体验，RollingGo 酒店 MCP 提供统一且严格互斥的多端支付凭证机制。
+
+---
+
+## 核心字段与适用场景
+
+系统在生单工具（`createHotelBookingWithPaymentURL`）及订单详情工具（`getHotelOrderDetail`）中统一返回以下支付字段：
+
+| 字段名称 | 字段类型 | 适用宿主环境 | 客户端处理方式 |
+| :--- | :--- | :--- | :--- |
+| **`paymentUrl`** | `string` / `null` | Web 网页 / 浏览器 / 桌面客户端 (Electron/WebView) | 直接在新标签页或浏览器中打开该 URL，用户自选微信、支付宝或国际信用卡完成付款。 |
+| **`miniProgramPayInfo`** | `object` / `null` | 微信小程序 / 微信环境原生应用 | 包含小程序收银台原生参数，客户端直接调用 `wx.navigateToMiniProgram` 拉起微信原生收银台。 |
+
+---
+
+## 返回与失效核心规则
+
+### 1. 二选一严格互斥下发
+* 系统根据 Partner 合作方绑定的客户端宿主环境自动识别：
+  * **Web/桌面端环境**：接口响应中**仅下发 `paymentUrl`**，`miniProgramPayInfo` 字段彻底隐藏；
+  * **微信小程序环境**：接口响应中**仅下发 `miniProgramPayInfo`**，`paymentUrl` 字段彻底隐藏；
+* 杜绝客户端因收到混杂数据而导致的分支判断混乱。
+
+### 2. 非待支付状态统一置空 (`null`)
+为防止用户在非待支付状态下点击失效链接产生误解：
+* 当订单处于**已支付确认 (`Confirmed`)**、**已取消 (`Canceled`)**，或超过 **30 分钟支付时效**自动失效后：
+* 对应的支付字段依然在 JSON 中保留，但其值**统一安全置为 `null`**（例如：`"paymentUrl": null`）。
+* 智能体检测到支付字段为 `null` 时，应提示用户当前订单已完成支付或已超时，无需再次引导付款。
+
+---
+
+## 客户端接入代码范例
+
+### 1. Web 浏览器与桌面客户端 (JavaScript / TypeScript)
+
+对于 Web 或桌面端应用，智能体直接从出参中提取 `paymentUrl`，并呈现给用户：
+
+```typescript
+if (bookingResult.paymentUrl) {
+  // 引导用户在新窗口打开收银台
+  window.open(bookingResult.paymentUrl, '_blank');
+} else {
+  console.log("订单非待支付状态或支付链接已失效");
+}
+```
+
+### 2. 微信小程序环境 (JavaScript)
+
+对于微信小程序宿主，智能体从 `miniProgramPayInfo` 中提取参数并调用微信原生 API 拉起收银台：
+
+```javascript
+const payInfo = bookingResult.miniProgramPayInfo;
+
+if (payInfo && payInfo.appId) {
+  wx.navigateToMiniProgram({
+    appId: payInfo.appId,
+    path: `${payInfo.path}?${payInfo.query}`,
+    success(res) {
+      console.log("成功拉起微信收银台");
+    },
+    fail(err) {
+      console.error("调起收银台失败", err);
+    }
+  });
+}
+```
+
+---
+
+## 支付倒计时与状态流转
+
+1. **30 分钟锁价与支付窗口**：
+   * 订单生成后，系统保留房源并锁定总价 30 分钟；
+   * 用户未在 30 分钟内完成支付的，订单状态将变更为 `Expired`，库存自动释放。
+2. **支付成功后状态同步**：
+   * 用户在收银台付款成功后，订单状态即时流转为 `Confirmed`；
+   * 调用 `getHotelOrderDetail` 即可查询到正式的入离凭证号与酒店联系电话。

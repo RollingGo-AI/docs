@@ -1,0 +1,133 @@
+---
+title: "Redirect Mode Integration"
+sidebarTitle: "Redirect Mode Integration"
+description: "Integrate RollingGo Hotel MCP Redirect Mode in 5 minutes using API Key for intelligent hotel search and recommendations with RollingGo checkout fulfillment."
+icon: "arrow-up-right-from-square"
+---
+
+Redirect Mode is the most lightweight and agile integration path for RollingGo Hotel MCP. The AI Agent handles hotel discovery and intelligent recommendations, attaching a direct reservation link (`bookingUrl`) to each recommendation card. The user clicks the link to navigate directly to RollingGo official web or mini program to select rooms, fill in guest details, and complete payment.
+
+---
+
+## Integration Steps
+
+### Step 1: Obtain API Key Credentials
+
+1. Sign in to the Partner Portal:
+   * Mainland China: [https://partner.rollinggo.cn](https://partner.rollinggo.cn)
+   * Global: [https://partner.rollinggo.ai](https://partner.rollinggo.ai)
+2. Navigate to Developer Settings to generate your exclusive API Key (format: `mcp_xxxxxxxxxxxx`).
+3. If your enterprise credentials were provided directly by the Business team, you can skip registration.
+
+---
+
+### Step 2: Configure MCP Client
+
+Add RollingGo Hotel MCP over HTTP transport in your project or agent client configuration, passing the API Key in the `Authorization` header.
+
+#### Client Configuration File (`.mcp.json` or `claude_desktop_config.json`)
+
+```jsonc
+{
+  "mcpServers": {
+    "rollinggo-hotel": {
+      "type": "http",
+      // Mainland China: https://mcp.rollinggo.cn/mcp; Global: https://mcp.rollinggo.ai/mcp
+      "url": "https://mcp.rollinggo.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer mcp_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+#### Command-Line Setup (Claude CLI)
+
+```bash
+claude mcp add   --transport http   --header "Authorization: Bearer mcp_your_api_key_here"   RollingGo-Hotel   https://mcp.rollinggo.ai/mcp
+```
+
+---
+
+### Step 3: Call Query Tools & Render Cards
+
+Redirect Mode provides **3 core query tools**:
+
+| Tool Name | Responsibility | Key Output Field |
+| :--- | :--- | :--- |
+| **`getHotelSearchTags`** | Retrieve platform-supported tags (WiFi, pool, family-friendly, subway) for preference extraction | Tags list |
+| **`searchHotels`** | Search hotels by destination, dates, star ratings, and budget | Hotel summary, minimum rate, and **`bookingUrl`** |
+| **`getHotelDetail`** | Query room rate plans, facilities, meal types, and cancellation policies | Room rates and room-level booking URLs |
+
+#### Search Example (`searchHotels`)
+
+```json
+{
+  "tool": "searchHotels",
+  "arguments": {
+    "originQuery": "4-star hotels near Tokyo Station for tomorrow, budget within 30000 JPY",
+    "place": "Tokyo Station",
+    "placeType": "Train Station",
+    "checkInParam": {
+      "checkInDate": "2026-11-01",
+      "stayNights": 1,
+      "adultCount": 2
+    },
+    "localeParam": {
+      "language": "en",
+      "currency": "JPY"
+    },
+    "filterOptions": {
+      "starRatings": [4.0, 5.0]
+    },
+    "hotelTags": {
+      "maxPricePerNight": 30000
+    },
+    "size": 2
+  }
+}
+```
+
+#### Handling Output & Delivering Cards
+
+The response payload includes a dedicated direct booking URL for each candidate hotel:
+
+```json
+{
+  "hotelList": [
+    {
+      "hotelId": 102906,
+      "hotelName": "The Tokyo Station Hotel",
+      "starRating": 5.0,
+      "address": "1-9-1 Marunouchi, Chiyoda-ku, Tokyo",
+      "priceInfo": {
+        "minPrice": 29800.0,
+        "currency": "JPY"
+      },
+      "bookingUrl": "https://rollinggo.ai/pages/hotel/detail/index?hotelId=102906"
+    }
+  ],
+  "nextPageToken": "NPT_20261101_TYO_TOKEN_A1"
+}
+```
+
+The Agent formats this into a recommendation card with the `bookingUrl`:
+
+> Here is a recommended hotel matching your preferences:
+> 
+> **The Tokyo Station Hotel (5.0★)**
+> * Address: 1-9-1 Marunouchi, Chiyoda-ku, Tokyo
+> * Starting From: **¥29,800 JPY / night**
+> * **👉 [Book on RollingGo](https://rollinggo.ai/pages/hotel/detail/index?hotelId=102906)**
+
+---
+
+## Key Features
+
+1. **Stateless Pagination (`nextPageToken`)**:
+   * When users ask to "show more" or "explore next batch", pass `nextPageToken` directly in subsequent tool calls without storing pagination state locally.
+2. **Anti-Drift Query Snapshots**:
+   * Subsequent page queries automatically inherit destination, dates, occupancy, and filter options from the initial turn, preventing LLM parameter drift.
+3. **Zero Transaction Overhead**:
+   * Agents avoid handling complex payment gateways, billing, and cancellation processing. All transactions are securely fulfilled by RollingGo's supply chain.

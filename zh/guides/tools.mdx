@@ -1,442 +1,126 @@
 ---
-title: "MCP Tool 参考文档"
-sidebarTitle: "MCP Tool 参考文档"
-icon: "wrench"
+title: "工具矩阵与接口规范"
+sidebarTitle: "工具矩阵与规范"
+description: "RollingGo 酒店 MCP 全量 9 大核心 Tool 矩阵对照、入参出参契约与调用规范。"
+icon: "toolbox"
 ---
 
-# RollingGo MCP Tool 参考文档
-
-> **面向：** 第三方 AI Agent 开发者、系统集成架构师、MCP 客户端用户  
-> **目标：** 详细说明 RollingGo MCP 服务在初级版本（APIKEY 鉴权）与全流程交易闭环版本（OAUTH 鉴权）的 API 参数规范、响应结构以及演进差异。
-
----
-
-## 📌 一、初级版本与全流程交易闭环版本核心差异
-
-RollingGo MCP 的演进方向：核心从 **“单一信息查询”** 演进为 **“从搜索到在线下单履约的完整交易闭环”**。
-
-### 1. 核心维度对比表
-
-| 对比维度 | 初级版本（APIKEY 鉴权） | 全流程交易闭环版本（OAUTH 鉴权） |
-| :--- | :--- | :--- |
-| **定位与能力** | 信息查询与展示（搜索/房型详情/标签） | 全流程交易闭环（搜索 -> 详查 -> 锁价 -> 生单支付 -> 订单履约 -> 取消售后） |
-| **酒店 Tool 数量** | **3 个** (`searchHotels`, `getHotelDetail`, `getHotelSearchTags`) | **9 个** (增加锁价、生单收银、订单列表、订单详情、两阶段订单取消) |
-| **机票 Tool 状态** | 2 个 (`searchAirports`, `searchFlights`) | ⚠️ 机票业务已暂停下线维护，聚焦酒店闭环 |
-| **交易与预订能力** | ⚠️ 不支持 Agent 下单，推送 `bookingUrl` 由用户自行下单 | ✅ 支持在线下单支付（锁价 30 分钟，下发收银台 `paymentUrl`） |
-| **订单管理能力** | ⚠️ 无接口，用户可在下单页面自行查询订单 | ✅ 提供精简列表 `searchHotelOrders`、全量详情 `getHotelOrderDetail` 与两阶段在线取消 `preCancelHotelBooking` / `confirmCancelHotelBooking` |
+RollingGo 酒店 MCP 服务遵循标准化的 JSON-RPC 2.0 契约，提供从酒店信息检索到生单支付、履约查单及售后退订的 **9 大核心 Tool**。
 
 ---
 
-### 2. 调用链路对比
+## 核心 Tool 矩阵总览
 
-#### 极简查询链路（初级版本）
-```
-[用户提问] ➔ getHotelSearchTags (可选) ➔ searchHotels (列表初筛) ➔ getHotelDetail (展示房型/价格) ➔ 推送 bookingUrl，用户跳 H5/小程序自行下单
-```
-
-#### 全流程预订与履约闭环链路（全流程交易闭环版本）
-```
-[1. 搜索初筛]  getHotelSearchTags ➔ searchHotels ➔ getHotelDetail
-                                                            │
-[2. 锁价下单]  createHotelBookingWithPaymentURL ⬅️ hotelPriceConfirm
-                     │ (获取 paymentUrl 收银台)
-                     ▼
-[3. 履约管理]  searchHotelOrders (概要列表) ➔ getHotelOrderDetail (订单详情)
-                                                            │
-[4. 取消售后]  preCancelHotelBooking (罚金试算，获取 10 分钟有效 confirmId) ➔ confirmCancelHotelBooking (执行取消，不可逆，须经用户明确确认)
-```
+| # | Tool 名称 | 跳转模式 | 闭环模式 | 核心能力与业务场景 |
+| :- | :--- | :---: | :---: | :--- |
+| 1 | **`getHotelSearchTags`** | ✅ | ✅ | 获取平台全量支持的酒店特色标签，用于提炼偏好并构建精确搜索条件 |
+| 2 | **`searchHotels`** | ✅ | ✅ | 酒店初筛搜索，返回候选列表、参考起价、预订直链及无状态翻页凭证 |
+| 3 | **`getHotelDetail`** | ✅ | ✅ | 查询房型套餐与设施详情，支持服务端餐食与退改精准筛选 |
+| 4 | **`hotelPriceConfirm`** | ❌ | ✅ | 实时库存校验与总价锁定（30 分钟），生成 `referenceNo` 与智能旅客画像 |
+| 5 | **`createHotelBookingWithPaymentURL`** | ❌ | ✅ | 提交住客信息生单，下发安全收银台支付凭证（`paymentUrl` / `miniProgramPayInfo`） |
+| 6 | **`searchHotelOrders`** | ❌ | ✅ | 查询名下历史订单列表与概要信息（轻量出参，防止模型上下文膨胀） |
+| 7 | **`getHotelOrderDetail`** | ❌ | ✅ | 查询单笔订单完整详情（含入离凭证号、物理地址、导航坐标、联系电话） |
+| 8 | **`preCancelHotelBooking`** | ❌ | ✅ | **两阶段预取消试算**：试算取消罚金，派发 10 分钟有效的凭证 `confirmId` |
+| 9 | **`confirmCancelHotelBooking`** | ❌ | ✅ | **两阶段确认取消执行**：携带 `confirmId` 执行不可逆取消并原路退款 |
 
 ---
 
-## 🔍 二、初级版本接口规范（APIKEY 鉴权）
+## 9 大核心 Tool 字段级规范
 
-初级版本适用于仅需要向用户展示酒店信息、将下单动作交由用户自行完成的 Agent 场景：Agent 不创建订单，但返回 `bookingUrl` 供用户跳转 H5/小程序自行下单。
-
-> **说明：** 本节的 3 个 Tool（`searchHotels`、`getHotelDetail`、`getHotelSearchTags`）为初级版本与全流程交易闭环版本**共有**，字段定义以当前生产版为准。
-
-### 1. `searchHotels` — 搜索全球酒店
-按地点、日期、星级、标签筛选酒店，返回候选列表及首夜预估最低参考价。
-
-* **Input 关键入参**：
-  * `originQuery` (string, 必填): 多轮会话提炼出的完整住宿意图（如“上海外滩五星酒店”）
-  * `place` (string, 必填): 目标搜索名称（如“上海外滩”）
-  * `placeType` (string, 必填): 地点类型枚举 (`城市` / `景点` / `机场` / `火车站` / `地铁站` / `酒店` / `区/县` / `详细地址`)
-  * `checkInParam` (object): 入住信息包
-    * `checkInParam.checkInDate` (string): 入住日期 `YYYY-MM-DD`（默认明天）
-    * `checkInParam.stayNights` (integer): 入住晚数 (范围 1~28，默认 `1`)
-    * `checkInParam.adultCount` (integer): 每间房成人数 (默认 `2`)
-  * `countryCode` (string): 国家二字码（ISO 3166-1，如 `CN`、`JP`）
-  * `filterOptions` (object): 地理解析与星级过滤
-    * `filterOptions.distanceInMeter` (integer): 直线距离限制（米，默认 `2000`，景点/机场时生效）
-    * `filterOptions.starRatings` (float[]): 星级范围，如 `[4.0, 5.0]`
-  * `hotelTags` (object): 高级标签、品牌与预算过滤
-    * `hotelTags.requiredTags` (string[]): 必须满足的硬性标签
-    * `hotelTags.preferredBrands` (string[]): 偏好品牌列表
-    * `hotelTags.maxPricePerNight` (float): 每晚预算上限
-  * `size` (integer): 返回条数 (默认 `5`，最大 20)
-
-* **Output 响应特征**：
-  返回 `success` / `message` / `hotelInformationList` 数组，价格字段 `price` 仅代表首夜展示用参考价；每个酒店附带 `bookingUrl`，可由 Agent 以链接卡片形式推送给用户，用户点击后在 H5/小程序内自行完成下单：
-  ```json
-  {
-    "success": true,
-    "message": "酒店搜索成功",
-    "hotelInformationList": [
-      {
-        "hotelId": 29529,
-        "bookingUrl": "https://rollinggo.cn/pages/hotel/detail/index?id=29529&...",
-        "name": "上海和平饭店",
-        "nameEn": "Fairmont Peace Hotel on the Bund",
-        "brand": null,
-        "address": "南京东路20号",
-        "destinationId": "553248621526920274",
-        "distanceInMeters": 124,
-        "latitude": 31.239021,
-        "longitude": 121.489459,
-        "starRating": 5.0,
-        "price": {
-          "hasPrice": true,
-          "currency": "CNY",
-          "lowestPrice": 4665.0,
-          "message": "查价成功。最低价格：4,665，币种：CNY"
-        },
-        "areaCode": "CN",
-        "description": "酒店坐落于著名的外滩和繁华的南京路交汇处... ",
-        "imageUrl": "https://image-cdn.aigohotel.com/Image/CN/29529/Featured Image/...",
-        "hotelAmenities": ["酒吧", "健身房", "泳池", "SPA", "停车场", "WIFI"],
-        "tags": ["SPA服务", "度假酒店", "运动友好酒店", "室内恒温泳池", "商务中心"]
-      }
-    ]
-  }
-  ```
+### 1. `getHotelSearchTags`（获取搜索标签）
+* **定位**：用于智能体了解平台支持的所有标签维度（如“免费WiFi”、“含早”、“亲子酒店”、“泳池”等）。
+* **核心出参**：`tags` 字符串数组。
 
 ---
 
-## 2. `getHotelDetail` — 查询房型与价格
-根据酒店 ID（或名称）获取指定入住时段的详细房型与报价。
-
-* **Input 关键入参**：
-  * `hotelId` (integer, 与 `name` 二选一，优先使用): 酒店唯一 ID
-  * `name` (string, 二选一): 酒店名称（模糊搜索）
-  * `dateParam` (object): `checkInDate` / `checkOutDate`（`YYYY-MM-DD`，离店必须晚于入住）
-  * `occupancyParam` (object): `roomCount`（默认 1）/ `adultCount`（默认 2）/ `childCount`（默认 0）/ `childAgeDetails`（儿童年龄数组，须与 childCount 对齐）
-  * `localeParam` (object): `countryCode`（默认 CN）/ `currency`（默认 CNY）
-* **Output 响应特征**：返回 `roomRatePlans` 房型套餐列表（核心字段含 `roomNameCn`, `ratePlanId`（锁价入参）, `averagePrice`, `mealTypeStr`, `isOnRequest`, `cancelPolicy`, `roomInfo`（房型设施信息包，含房型首图 `roomInfo.images`，无图返回 `null`）），JSON 示例：
-
-  ```json
-  {
-    "success": true,
-    "hotelId": 1356133,
-    "name": null,
-    "nameEn": "Yitel Collection Hotel (Hangzhou West Lake Scenic Area Intime in77)",
-    "checkIn": "2026-06-29",
-    "checkOut": "2026-06-30",
-    "bookingUrl": "https://rollinggo.cn/pages/hotel/detail/index?id=1356133...",
-    "message": "搜索成功",
-    "roomRatePlans": [
-      {
-        "roomName": "Queen Room",
-        "roomNameCn": "大床房A",
-        "ratePlanId": "fQJLb3OK1nE-4yPeHkCSFrG",
-        "ratePlanName": "DOUBLE ROOM A",
-        "averagePrice": 265.0,
-        "bedTypeDescription": "1 大床",
-        "currency": "CNY",
-        "mealAmount": 0,
-        "mealTypeStr": "不含早餐",
-        "isOnRequest": false,
-        "cancelPolicy": "不可免费取消",
-        "roomInfo": {
-          "hasWifi": true,
-          "hasWindow": true,
-          "maxOccupancy": 3,
-          "size": "36",
-          "smoking": "不可吸烟",
-          "images": "https://image-cdn.rollinggo.cn//v2/1090005/room-type/default/12/90582968/0003/image/nw_18OWyLEPcGs.jpg-t"
-        }
-      },
-      {
-        "roomName": "Standard Twin Room",
-        "roomNameCn": "标准双床房",
-        "ratePlanId": "zQxLb9WK2mF-7yReHdGTBr",
-        "ratePlanName": "TWIN ROOM",
-        "averagePrice": 289.0,
-        "bedTypeDescription": "2 单人床",
-        "currency": "CNY",
-        "mealAmount": 2,
-        "mealTypeStr": "含早餐",
-        "isOnRequest": false,
-        "cancelPolicy": "7月10日前免费取消",
-        "roomInfo": {
-          "hasWifi": true,
-          "hasWindow": false,
-          "maxOccupancy": 2,
-          "size": "28",
-          "smoking": "可吸烟",
-          "images": null
-        }
-      }
-    ]
-  }
-  ```
+### 2. `searchHotels`（酒店初筛搜索）
+* **定位**：根据地点、时间、星级、价格等初筛酒店候选列表。
+* **核心入参**：
+  * `place` (String, 必填)：搜索目的地或地标名称。
+  * `placeType` (String, 必填)：地标类型（国内节点为中文枚举：`"城市"`、`"景点"`、`"商圈"`、`"火车站"`、`"机场"`；国际节点为英文枚举）。
+  * `checkInParam` (Object, 必填)：包含 `checkInDate` (YYYY-MM-DD)、`stayNights` (Int)、`adultCount` (Int)。
+  * `filterOptions` (Object, 选填)：`starRatings` (星级数组，如 `[4.0, 5.0]`)。
+  * `hotelTags` (Object, 选填)：`maxPricePerNight` (每晚最高预算)、`requiredTags` (必选标签数组)。
+  * `size` (Int, 选填)：返回酒店数量（默认为 5，支持 1~10）。
+  * `nextPageToken` (String, 选填)：向后翻页凭证。
+  * `localeParam` (Object, 国际节点)：`language` 与 `currency`（支持 25 种货币实时换汇）。
+* **核心出参**：
+  * `hotelList`：酒店列表，包含 `hotelId`、`hotelName`、`starRating`、`priceInfo` 及 `bookingUrl`。
+  * `nextPageToken`：后续翻页凭证（无下一页时为 null）。
 
 ---
 
-## 3. `getHotelSearchTags` — 获取搜索标签（通用）
-获取当前启用的酒店筛选标签列表（如“含早餐”、“海景房”、“泳池”等）。
-
-* **Output 响应特征**：返回 `success` + `tags[]`（含 `name` 与 `category` 分类）+ `usageGuide`（大模型标签组合使用指导文字与示例请求 JSON）。
-
----
-
-## 4. 机票接口（⚠️ 已下线维护）
-* `searchAirports`: 输入城市/机场关键词换取三字码（如 `HGH`）。
-* `searchFlights`: 使用三字码查询单程/往返机票列表。
-
----
-
-## 🛒 三、全流程交易闭环版本接口规范（OAUTH 鉴权）
-
-全流程交易闭环版本升级为 **9 个 Tool** 架构，实现了从价格锁死、生成支付链接到订单履约与两阶段安全取消的全流程操作（字段定义对齐《RollingGo Hotel MCP Tool 字段参考文档》v2.7，2026-09-20）。
-
-* **服务端点**（OAUTH 鉴权接入）：国内版 `https://mcp.rollinggo.cn/mcp/hotel` / 国际版 `https://mcp.rollinggo.ai/mcp/hotel`；授权流程详见《RollingGo OAuth 2.0 开发者接入文档（中国大陆 / 海外及港澳台）》。
-* **国内版 / 国际版核心字段差异**：① 国际版支持 `localeParam`（`currency` 默认 `USD`、支持 25 种货币；`language` 默认 `en`、支持 `en`/`zh`/`ja`），国内版固定中文（`zh-CN`）+ 人民币（`CNY`），不支持传入；② `placeType` 枚举国内版为中文（`城市`/`机场`/`景点` 等）、国际版为英文（`city`/`airport`/`point_of_interest` 等）；③ `countryCode` 与 `nationality` 已废弃移除；④ `contact.email` 国内版必填、国际版可选；⑤ `bookingUrl` 与 `miniProgramInfo`（微信小程序落地对象）按渠道形态互斥返回。
-
-### 1. `getHotelSearchTags` — 获取搜索标签
-与初级版本一致，返回系统当前启用的全部标签及大模型组合偏好指导文案。
+### 3. `getHotelDetail`（查询房型详情与套餐）
+* **定位**：查询指定酒店的完整房型信息、图文设施，并支持服务端精准过滤。
+* **核心入参**：
+  * `hotelId` (Int, 必填)：酒店 ID。
+  * `dateParam` (Object, 必填)：`checkInDate` 与 `checkOutDate`。
+  * `occupancyParam` (Object, 必填)：`roomCount` 与 `adultCount`。
+  * `filter` (Object, 选填·推荐)：
+    * `mealType`：餐食筛选（如 `"DOUBLE_BREAKFAST"`、`"SINGLE_BREAKFAST"`、`"NO_MEAL"`）；
+    * `cancelable`：退改筛选（`"CANCELABLE"` 免费取消）。
+* **核心出参**：`roomRatePlans`（包含房型名、面积、床型、餐食、退改规则及价格明细）。
 
 ---
 
-### 2. `searchHotels` — 搜索全球酒店
-与初级版本一致（含 `hotelTags` 标签/品牌/预算等全部筛选能力），入参与响应结构详见第二节。注意：`countryCode` 已废弃移除，语言与币种改用 `localeParam`（仅国际版）；`hotelTags.maxPricePerNight` 按所传 `localeParam.currency` 币种理解；响应中 `bookingUrl` 与 `miniProgramInfo` 按渠道形态互斥返回。
+### 4. `hotelPriceConfirm`（价格锁定与验价 · 闭环专属）
+* **定位**：生单前锁定 30 分钟实时价格与房态，杜绝跳价。
+* **核心入参**：`hotelID`、`ratePlanID`、`numOfRooms`、`dateParam`、`occupancyDetails`。
+* **核心出参**：
+  * `referenceNo`：锁定凭证号（必须在创建订单时回传）；
+  * `finalTotalAmount`：锁定的最终应付总价；
+  * `guestProfile`：常住旅客画像信息（推荐姓名、证件及联系方式）。
 
 ---
 
-### 3. `getHotelDetail` — 详查房型与套餐
-与初级版本一致，直接返回可用于下一步锁价的 `ratePlanId`，入参与响应结构详见第二节。注意：支持 `filter` 房型筛选（国内版与国际版均支持，未传时返回全量房型）——`filter.mealType` 餐食筛选（标准英文枚举 `BREAKFAST_INCLUDED` / `SINGLE_BREAKFAST` / `DOUBLE_BREAKFAST` / `NO_MEAL`，兼容中/日文别名如“含早餐”“双早”“朝食付き”）、`filter.cancelable` 退改筛选（`CANCELABLE` / `NON_CANCELABLE`，兼容“可免费取消”“不可取消”“無料キャンセル”等）。
+### 5. `createHotelBookingWithPaymentURL`（生单与收银台 · 闭环专属）
+* **定位**：提交住客信息创建订单，并下发支付收银台凭证。
+* **核心入参**：
+  * `referenceNo` (String, 必填)：由 `hotelPriceConfirm` 返回的锁定凭证。
+  * `contact` (Object, 必填)：联系人姓名、手机号及邮箱。
+  * `guestList` (Array, 必填)：每间房的实际入住旅客姓名列表。
+* **核心出参**：
+  * `orderNo`：正式订单号。
+  * `paymentUrl`：Web 收银台网页链接（Web 环境下发）。
+  * `miniProgramPayInfo`：小程序原生收银台调起对象（微信小程序环境下发）。
 
 ---
 
-### 4. `hotelPriceConfirm` — 价格确认与锁价（交易闭环版本新增）
-* **功能**：锁定选定房型的实时最终价格，生成预订参考凭证号 `referenceNo`，锁定有效期 30 分钟。
-* **Input 关键入参**：
-  * `hotelID` (integer, 必填): 酒店 ID
-  * `ratePlanID` (string, 必填): `getHotelDetail` 返回的方案 ID
-  * `numOfRooms` (integer, 必填): 预订房间数 (默认 `1`)
-  * `dateParam` (object, 必填): `checkInDate` / `checkOutDate`（`YYYY-MM-DD`）
-  * `occupancyDetails` (array, 必填): 房间人数配比，项数须与 `numOfRooms` 一致
-    * `occupancyDetails[].roomNum` (integer, 必填): 房间序号，从 `1` 起递增
-    * `occupancyDetails[].adultCount` (integer, 必填): 该房成人数 (默认 `2`)
-    * `occupancyDetails[].childCount` (integer): 该房儿童数 (默认 `0`)
-    * `occupancyDetails[].childAgeDetails` (integer[]): 儿童年龄数组，有儿童时必传
-  * `localeParam` (object, 仅国际版): 语言与币种偏好包（`language` / `currency`，国内版无需传入）
-* **Output 输出**：
-  ```json
-  {
-    "success": true,
-    "referenceNo": "REF2026081299812",
-    "totalPrice": 9330.0,
-    "currency": "CNY",
-    "message": "价格校验通过，锁定成功"
-  }
-  ```
+### 6. `searchHotelOrders`（订单列表概览 · 闭环专属）
+* **定位**：查询当前用户名下的酒店订单简要列表。
+* **核心入参**：`status` (选填，如 `"WAITING_PAYMENT"`、`"CONFIRMED"`)、`page`、`size`。
+* **核心出参**：轻量级订单概要列表，包含订单号、酒店名、入离日期、金额与状态。
 
 ---
 
-### 5. `createHotelBookingWithPaymentURL` — 创建订单与获取收银台（交易闭环版本新增）
-* **功能**：提交入住人姓名拼音与联系方式，创建系统订单（`orderNo`），并下发 Dida 平台通用收银台 `paymentUrl`。
-* **Input 关键入参**：
-  * `referenceNo` (string, 必填): `hotelPriceConfirm` 返回依然有效的锁价凭证
-  * `contact` (object, 必填): 联系人信息
-    * `contact.firstName` (string, 必填): 名（拼音或英文）
-    * `contact.lastName` (string, 必填): 姓（拼音或英文）
-    * `contact.email` (string, 国内版必填 / 国际版可选): 接收确认邮件及行程单的邮箱
-    * `contact.phone` (string, 必填): 接收短信通知与紧急联络的电话
-  * `guestList` (array, 必填): 入住旅客名录，长度须与预订间数一致
-    * `guestList[].roomNum` (integer, 必填): 房间序号，从 `1` 起递增
-    * `guestList[].guestInfo` (array, 必填): 该房入住旅客列表，每房至少 1 名成人
-      * `guestInfo[].firstName` (string, 必填): 名拼音或官方英文名
-      * `guestInfo[].lastName` (string, 必填): 姓拼音或官方英文姓
-      * `guestInfo[].isAdult` (boolean, 必填): `true` 成人 / `false` 儿童
-      * `guestInfo[].age` (integer, 儿童必填): 儿童年龄，`isAdult=false` 时不得漏传
-  * `customerRequest` (string, 可选): 备注式选房要求（如无烟、高楼层）
-* **Output 输出**：`bookingResult` 为实单结果包装（**生单失败时为 `null`**）；`paymentType` 当前固定返回 `"URL"`，`paymentUrl` 为 Dida 平台通用收银台支付页链接（前端解析相应 token，可在宿主浏览器环境调起支付宝、微信、手机 H5 等通道支付结算）：
-  ```json
-  {
-    "success": true,
-    "bookingResult": {
-      "orderNo": "H17820260812001",
-      "paymentType": "URL",
-      "paymentUrl": "https://checkout.dida.com/pay?token=pay_tok_881923"
-    }
-  }
-  ```
+### 7. `getHotelOrderDetail`（订单完整详情与凭证 · 闭环专属）
+* **定位**：查询单笔订单全部结构化履约信息。
+* **核心入参**：`orderNo` (String, 必填)。
+* **核心出参**：
+  * `hotelConfirmationNo`：酒店入离凭证号。
+  * `hotelInfo`：酒店物理地址、导航坐标 (`latitude`, `longitude`)、前台电话。
+  * `stayInfo`：入离日期、房型名、餐食政策、住客姓名。
+  * `priceInfo`：总金额与支付状态（已支付时 `paymentUrl` 自动为 null）。
+  * `policyInfo`：免费退改截止时间与退改政策描述。
 
 ---
 
-### 6. `searchHotelOrders` — 查询订单列表（交易闭环版本新增）
-* **功能**：拉取当前账户绑定的酒店订单概要列表，轻量化结构防止大模型处理多订单时遭遇信息爆炸和 Context 膨胀。
-* **Input 关键入参**：
-  * `status` (string): 订单状态筛选（默认 `ALL`）：`ALL` 全部 / `PENDING` 进行中待出行（映射底层状态 `PreBook`、`Booked`、`Pending`、`OnRequest`、`Confirmed`）/ `FINISHED` 已结束（映射底层状态 `Canceled`、`Failed`、`Finished`）
-  * `dateRange` (object): 下单时间区间
-    * `dateRange.startDate` (string): 开始日期 `YYYY-MM-DD`
-    * `dateRange.endDate` (string): 结束日期 `YYYY-MM-DD`
-* **Output 输出**：`orderList[]` 概要列表（按生单时间倒序），各字段为 `orderNo`, `hotelName`, `roomName`, `numOfRooms`, `checkInDate`, `checkOutDate`, `mealDesc`, `cancelPolicyDesc`, `orderStatus`, `totalPrice`, `currency`, `orderDate`, `orderDetailUrl`（H5 详情页链接，含支付/退改按钮）, `paymentUrl`（待支付时返回收银台链接，否则 `null`）：
-  ```json
-  {
-    "success": true,
-    "message": "查询成功",
-    "orderList": [
-      {
-        "orderNo": "H17820260812001",
-        "hotelName": "上海和平饭店",
-        "roomName": "高级大床房",
-        "numOfRooms": 1,
-        "checkInDate": "2026-08-12",
-        "checkOutDate": "2026-08-13",
-        "mealDesc": "双早",
-        "cancelPolicyDesc": "8月11日 18:00 前免费取消",
-        "orderStatus": "待支付",
-        "totalPrice": 9330.0,
-        "currency": "CNY",
-        "orderDate": "2026-08-12 10:30:00",
-        "orderDetailUrl": "https://rollinggo.cn/pages/order/detail/index?id=H17820260812001",
-        "paymentUrl": "https://checkout.dida.com/pay?token=pay_tok_881923"
-      }
-    ]
-  }
-  ```
+### 8. `preCancelHotelBooking`（两阶段预取消试算 · 闭环专属）
+* **定位**：退订第一阶段，试算取消罚金，派发 10 分钟凭证。
+* **核心入参**：`orderNo` (String, 必填)。
+* **核心出参**：
+  * `canCancel` (Boolean)：是否允许在线取消。
+  * `penaltyAmount` (Float)：试算取消罚金（0.00 代表免费取消）。
+  * `bookingId` (String)：底层预订标识。
+  * `confirmId` (String)：**10 分钟有效的取消凭证号**。
 
 ---
 
-### 7. `getHotelOrderDetail` — 查询订单全量详情（交易闭环版本新增）
-* **功能**：根据订单号获取单笔订单的完整结构化详情，满足前台快捷办理入住、地图路线导航、订单限时付款、退改时效判定、凭证报销等场景。
-* **Input 关键入参**：`orderNo` (string, 必填): 主体订单号（如 `"H178..."`）
-* **Output 输出**：`success` + `message` + `orderDetail`，按五个模块分组（`baseInfo` / `hotelInfo` / `stayInfo` / `priceInfo` / `policyInfo`）：
-  ```json
-  {
-    "success": true,
-    "message": "查询成功",
-    "orderDetail": {
-      "baseInfo": {
-        "orderNo": "H17820260812001",
-        "referenceNo": "REF2026081299812",
-        "hotelConfirmationNo": "HK2026081201CN876",
-        "orderStatus": "待支付",
-        "orderDate": "2026-08-12 10:30:00",
-        "orderDetailUrl": "https://rollinggo.cn/pages/order/detail/index?id=H17820260812001"
-      },
-      "hotelInfo": {
-        "hotelName": "上海和平饭店",
-        "hotelImageUrl": "https://image-cdn.aigohotel.com/Image/CN/29529/Featured Image/main.jpg",
-        "hotelPhone": "021-63216888",
-        "platformSupportPhone": "400-888-xxxx",
-        "hotelAddress": "南京东路20号",
-        "latitude": 31.239021,
-        "longitude": 121.489459
-      },
-      "stayInfo": {
-        "roomName": "高级大床房",
-        "bedTypeStr": "1张特大床 (1.8m)",
-        "checkInDate": "2026-08-12",
-        "checkOutDate": "2026-08-13",
-        "checkInTime": "14:00",
-        "checkOutTime": "12:00",
-        "numOfRooms": 1,
-        "nights": 1,
-        "mealDesc": "双早",
-        "contact": {
-          "name": "ZHANG SAN",
-          "phone": "13800138000",
-          "email": "zhangsan@example.com"
-        },
-        "guestNames": ["ZHANG SAN"]
-      },
-      "priceInfo": {
-        "totalPrice": 9330.0,
-        "currency": "CNY",
-        "paymentUrl": "https://checkout.dida.com/pay?token=pay_tok_881923",
-        "paymentDeadline": "2026-08-12 11:00:00"
-      },
-      "policyInfo": {
-        "isCancelable": true,
-        "freeCancelDeadline": "2026-08-11 18:00:00",
-        "cancelPolicyDesc": "8月11日 18:00 前免费取消"
-      }
-    }
-  }
-  ```
-
----
-
-### 8. `preCancelHotelBooking` — 预取消订单与罚金试算（交易闭环版本新增）
-* **功能**：两阶段安全取消的**第一步**——查询订单能否在线取消、试算取消罚金，并获取 **10 分钟有效** 的取消确认凭证 `confirmId`。实际取消前必须先调用本 Tool，再调用 `confirmCancelHotelBooking` 完成最终取消。只读操作（`readOnlyHint: true`、`destructiveHint: false`），本步骤不会真正取消订单。
-* **Input 关键入参**：`orderNo` (string, 必填): RollingGo 系统订单号
-* **Output 关键输出**：
-  * `canCancel` (boolean): **核心判断依据**——`penaltyAmount == 0`（完全免费取消）时为 `true`；有罚金或不可退房型时为 `false`，无法在线取消，`message` 中给出客服电话（`0755-36847480 / +852 30023293`）与邮箱（`cs.hotel@rollinggo.cn`）引导人工处理
-  * `confirmId` (string/null): 取消确认凭证，仅 `canCancel=true` 时返回，**有效期 10 分钟**；未支付订单返回 `"UNPAID"`
-  * `bookingId` (string/null): 底层供应商预订号，仅 `canCancel=true` 时返回，确认取消时须回传
-  * `penaltyAmount` (number) / `currency` (string): 取消罚金金额与币种代码（`0` 表示免费取消）
-  * `message` (string): 中 / 英 / 日多语言动态提示文案
-* **Output 示例**（未支付订单，可免费取消）：
-  ```json
-  {
-    "success": true,
-    "code": 2000,
-    "canCancel": true,
-    "orderNo": "H178969795522549201",
-    "bookingId": "H178969795522549201",
-    "confirmId": "UNPAID",
-    "penaltyAmount": 0,
-    "message": "查询成功，该订单尚未支付，可免费取消。凭证有效期 10 分钟。"
-  }
-  ```
-
----
-
-### 9. `confirmCancelHotelBooking` — 确认并执行订单取消（交易闭环版本新增）
-* **功能**：两阶段安全取消的**第二步**——使用 `preCancelHotelBooking` 返回的凭证执行最终取消。**操作不可逆**（`destructiveHint: true`，幂等 `idempotentHint: true`），Agent 调用前必须获得用户的**明确确认**。
-* **Input 关键入参**：
-  * `orderNo` (string, 必填): `preCancelHotelBooking` 返回的订单号
-  * `bookingId` (string, 必填): `preCancelHotelBooking` 返回的预订号
-  * `confirmId` (string, 必填): `preCancelHotelBooking` 返回的取消确认凭证（有效期 10 分钟，过期报 `6207`，需重新预取消获取新凭证）
-  * `description` (string, 可选): 取消原因或备注说明
-* **Output 输出**：`success` + `code` + `message`（中 / 英 / 日结果文案）+ `orderNo`：
-  ```json
-  {
-    "success": true,
-    "code": 2000,
-    "message": "订单 H178969795522549201 已成功取消。",
-    "orderNo": "H178969795522549201"
-  }
-  ```
-
----
-
-### 10. 统一错误码与异常映射（交易类 Tool）
-
-| 错误码 (`code`) | HTTP 状态 | 错误枚举 | 场景说明 | 客户端 / Agent 应对建议 |
-| :--- | :--- | :--- | :--- | :--- |
-| `2000` | 200 | `SUCCESS` | 操作成功 | 正常渲染成功状态与文案 |
-| `6001` | 403 | `BOOKING_FORBIDDEN` | 订单不存在或不属于当前登录用户 | 提示用户核对订单号 |
-| `6201` | 400 | `PRICE_CONFIRM_FAILED` | 房型验价失败 / 房间已售罄 | 引导用户重新搜索可用房型 |
-| `6207` | 400 | `CONFIRM_ID_EXPIRED` | 取消确认凭证已过期（超过 10 分钟） | 引导重新调用 `preCancelHotelBooking` 获取新凭证 |
-| `6301` | 400 | `BOOKING_NON_CANCELABLE` | 订单按规则无法在线取消 | 展示 `message` 中的客服电话及邮箱，引导联系人工 |
-| `6302` | 502 | `SUPPLIER_CANCEL_FAILED` | 上游供应商取消异常 | 建议稍后重试或联系客服协助处理 |
-
----
-
-## 🔄 四、版本选型建议
-
-1. **默认接入初级版本**：
-   * 申请接入默认开通**初级版本（APIKEY 鉴权）**：Agent 完成搜索与推荐后，将 `bookingUrl` 推送给用户，跳转 RollingGo H5/小程序承接下单预订。
-   * 开发量小、接入简单，最快几分钟完成对接上线。
-
-2. **接入全流程交易闭环版本**：
-   * 若贵方拥有自有 Agent 且希望 Agent 在对话内**独立完成查询 → 锁价 → 生单 → 支付 → 订单履约的全流程闭环**，可申请接入**全流程交易闭环版本（OAUTH 鉴权）**。
-   * 该版本需联系商务开通：**商务合作** [contact@rollinggo.ai](mailto:contact@rollinggo.ai)
-
----
-
-**文档版本：** 当前生产版  （对齐v2.7：OAUTH 版本扩展为 9 个 Tool，新增两阶段订单取消与统一错误码）  
-**更新日期：** 2026-10-14
+### 9. `confirmCancelHotelBooking`（两阶段确认取消执行 · 闭环专属）
+* **定位**：退订第二阶段，携带凭证执行最终不可逆退订。
+* **核心入参**：
+  * `orderNo` (String, 必填)。
+  * `bookingId` (String, 必填)。
+  * `confirmId` (String, 必填)：预取消阶段获取的凭证号。
+  * `description` (String, 选填)：取消原因。
+* **核心出参**：`success: true`，退订成功确认及退款提示。

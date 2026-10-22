@@ -1,0 +1,129 @@
+---
+title: "跳转模式接入"
+sidebarTitle: "跳转模式接入"
+description: "5 分钟快速接入 RollingGo 酒店 MCP 跳转模式，通过 API Key 实现智能酒店搜索推荐，由 RollingGo 承接预订交易。"
+icon: "arrow-up-right-from-square"
+---
+
+跳转模式是 RollingGo 酒店 MCP 最轻量、最敏捷的接入形态。智能体仅负责酒店信息检索与推荐，在向用户推荐酒店卡片时附带预订直链（`bookingUrl`），用户点击链接直接跳转至 RollingGo 官方网页或微信小程序自主完成选房、填写住客信息与支付交易。
+
+---
+
+## 接入步骤
+
+### 第一步：获取 API Key 凭证
+
+1. 登录开放平台合作中心：
+   * 国内开发者：[https://partner.rollinggo.cn](https://partner.rollinggo.cn)
+   * 国际开发者：[https://partner.rollinggo.ai](https://partner.rollinggo.ai)
+2. 在控制台进入「开发者管理」，获取专属 API Key（格式如 `mcp_xxxxxxxxxxxx`）。
+3. 如您已由商务团队线下提供 API Key，可直接跳过注册步骤开始接入。
+
+---
+
+### 第二步：配置 MCP 客户端
+
+在您的智能体项目或客户端配置中，通过 HTTP 协议添加 RollingGo 酒店 MCP 服务，并在请求头中携带 API Key。
+
+#### 客户端配置文件示例 (`.mcp.json` 或 `claude_desktop_config.json`)
+
+```jsonc
+{
+  "mcpServers": {
+    "rollinggo-hotel": {
+      "type": "http",
+      // 国内节点使用 https://mcp.rollinggo.cn/mcp，国际节点使用 https://mcp.rollinggo.ai/mcp
+      "url": "https://mcp.rollinggo.cn/mcp",
+      "headers": {
+        "Authorization": "Bearer mcp_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+#### 命令行添加示例 (Claude CLI)
+
+```bash
+claude mcp add   --transport http   --header "Authorization: Bearer mcp_your_api_key_here"   RollingGo-Hotel   https://mcp.rollinggo.cn/mcp
+```
+
+---
+
+### 第三步：调用查询工具与推送预订卡片
+
+跳转模式下开放 **3 个核心查询工具**：
+
+| 工具名称 | 核心职责 | 输出承接字段 |
+| :--- | :--- | :--- |
+| **`getHotelSearchTags`** | 获取平台全量支持的酒店特色标签（如免费 WiFi、泳池、亲子、地铁周边等），用于提炼用户偏好 | 标签列表 |
+| **`searchHotels`** | 根据城市、商圈、入离日期、星级和预算筛选酒店候选列表 | 酒店概要、起价及 **`bookingUrl`** |
+| **`getHotelDetail`** | 查询指定酒店的图文设施、房型列表、餐食与取消政策详情 | 房型套餐及对应预订直链 |
+
+#### 搜索调用示例 (`searchHotels`)
+
+```json
+{
+  "tool": "searchHotels",
+  "arguments": {
+    "originQuery": "杭州西溪湿地附近的4星级酒店，明晚1晚，预算800内",
+    "place": "西溪湿地",
+    "placeType": "景点",
+    "checkInParam": {
+      "checkInDate": "2026-11-01",
+      "stayNights": 1,
+      "adultCount": 2
+    },
+    "filterOptions": {
+      "starRatings": [4.0, 5.0]
+    },
+    "hotelTags": {
+      "maxPricePerNight": 800
+    },
+    "size": 3
+  }
+}
+```
+
+#### 接口响应与卡片下发
+
+工具返回的数据结构中包含每个酒店的专属预订直链：
+
+```json
+{
+  "hotelList": [
+    {
+      "hotelId": 102906,
+      "hotelName": "杭州阿里巴巴园区菲住布渴酒店",
+      "starRating": 4.0,
+      "address": "浙江省杭州市余杭区高教路998号",
+      "priceInfo": {
+        "minPrice": 395.0,
+        "currency": "CNY"
+      },
+      "bookingUrl": "https://rollinggo.cn/pages/hotel/detail/index?hotelId=102906"
+    }
+  ],
+  "nextPageToken": "NPT_20261101_HZ_TOKEN_B2"
+}
+```
+
+智能体直接组织图文卡片回复用户，并引导用户点击 `bookingUrl` 跳转至网页或微信小程序完成预订：
+
+> 为您找到符合条件的酒店：
+> 
+> **杭州阿里巴巴园区菲住布渴酒店 (4.0★)**
+> * 地址：杭州市余杭区高教路 998 号
+> * 参考起价：**¥395 / 晚 起**
+> * **👉 [点击进入 RollingGo 完成预订](https://rollinggo.cn/pages/hotel/detail/index?hotelId=102906)**
+
+---
+
+## 核心特性
+
+1. **无状态分页机制 (`nextPageToken`)**：
+   * 当用户需要“换一批”或查看更多酒店时，智能体只需在入参传入 `nextPageToken`，即可连续向下获取候选列表，无需在本地记录翻页状态。
+2. **多轮对话参数防漂移**：
+   * 翻页请求自动继承首次查询的地点、日期、人数与筛选快照，避免大模型在多轮交互中丢失或修改基础搜索条件。
+3. **免交易风险与售后负担**：
+   * 智能体侧无需处理复杂的资金收付、发票开具及退款退订逻辑，全流程由 RollingGo 官方成熟供应链体系合规履约。

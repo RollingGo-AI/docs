@@ -1,0 +1,84 @@
+---
+title: "Payment & Checkout Routing"
+sidebarTitle: "Payment & Checkout"
+description: "In-depth guide to RollingGo Hotel MCP cashier architecture, Web payment URLs, and WeChat Mini Program native payment routing."
+icon: "credit-card"
+---
+
+In Closed-Loop Mode, to accommodate diverse host environments such as web browsers, desktop agents, WeChat mini programs, and native mobile apps, RollingGo Hotel MCP provides standardized, mutually exclusive payment voucher mechanisms.
+
+---
+
+## Core Fields & Target Environments
+
+The booking creation tool (`createHotelBookingWithPaymentURL`) and order detail tool (`getHotelOrderDetail`) return the following cashier fields:
+
+| Field | Type | Target Host Environment | Client Handling |
+| :--- | :--- | :--- | :--- |
+| **`paymentUrl`** | `string` / `null` | Web browsers / Desktop apps (Electron, WebView) | Open the URL in a browser tab. The user chooses WeChat Pay, Alipay, or credit cards to checkout. |
+| **`miniProgramPayInfo`** | `object` / `null` | WeChat Mini Programs / Native mobile apps | Contains native cashier launch parameters. Invoke `wx.navigateToMiniProgram` to launch checkout. |
+
+---
+
+## Exclusivity & Expiration Rules
+
+### 1. Mutually Exclusive Payload Delivery
+* The platform automatically detects the Partner's registered host environment:
+  * **Web/Desktop Hosts**: The response **delivers only `paymentUrl`**; `miniProgramPayInfo` is completely omitted;
+  * **WeChat Hosts**: The response **delivers only `miniProgramPayInfo`**; `paymentUrl` is completely omitted;
+* This ensures that clients receive clean payloads without branching ambiguity.
+
+### 2. Safe Nulling for Non-Pending States
+To prevent users from navigating to expired links:
+* When an order is **Confirmed**, **Canceled**, or **Expired** past the 30-minute window:
+* The payment field remains in the JSON payload, but its value is **safely set to `null`** (e.g. `"paymentUrl": null`).
+* When an agent observes a `null` payment field, it should inform the user that the reservation is already settled or expired.
+
+---
+
+## Client Integration Examples
+
+### 1. Web Browsers & Desktop Hosts (JavaScript / TypeScript)
+
+For web or desktop environments, the agent extracts `paymentUrl` and prompts the user:
+
+```typescript
+if (bookingResult.paymentUrl) {
+  // Navigate user to secure cashier
+  window.open(bookingResult.paymentUrl, '_blank');
+} else {
+  console.log("Order is not in pending payment state or link expired.");
+}
+```
+
+### 2. WeChat Mini Program Hosts (JavaScript)
+
+For WeChat hosts, the agent extracts parameters from `miniProgramPayInfo`:
+
+```javascript
+const payInfo = bookingResult.miniProgramPayInfo;
+
+if (payInfo && payInfo.appId) {
+  wx.navigateToMiniProgram({
+    appId: payInfo.appId,
+    path: `${payInfo.path}?${payInfo.query}`,
+    success(res) {
+      console.log("Launched WeChat cashier successfully.");
+    },
+    fail(err) {
+      console.error("Failed to launch cashier:", err);
+    }
+  });
+}
+```
+
+---
+
+## 30-Minute Payment Window & Order Lifecycle
+
+1. **30-Minute Guaranteed Window**:
+   * Inventory and total rates are locked for 30 minutes following order generation.
+   * If payment is not completed within 30 minutes, the order shifts to `Expired` and inventory is released.
+2. **Order Confirmation Synchrony**:
+   * Once payment succeeds, the order status transitions immediately to `Confirmed`.
+   * Calling `getHotelOrderDetail` retrieves the official confirmation voucher and hotel contact numbers.

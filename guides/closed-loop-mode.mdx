@@ -1,0 +1,145 @@
+---
+title: "Closed-Loop Mode Integration"
+sidebarTitle: "Closed-Loop Mode Integration"
+description: "Achieve complete in-agent commercial transactions from search, 30-minute price lock, booking, cashier payment, to voucher query and two-phase cancellation."
+icon: "arrows-rotate"
+---
+
+Closed-Loop Mode is RollingGo Hotel Open Platform's full-lifecycle solution for production AI agents. Users never need to leave the conversation flow. The Agent leverages all **9 core tools** to complete the end-to-end journey: multi-dimensional search, precise room rate plan filtering, 30-minute price lock, booking & cashier payment, order vouchers, and two-phase safe cancellation & refund.
+
+---
+
+## Prerequisite: User-Level Authorization (OAuth 2.0)
+
+Because Closed-Loop Mode handles booking creation, payment checkout, real guest personal details, and cancellations, it requires **OAuth 2.0 / 2.1 Authorization Code Flow with PKCE** to obtain user-level Access Tokens.
+
+* For complete protocol endpoints and implementation guides, see the [OAuth 2.0 Integration Guide](/guides/oauth).
+* Pass the token in request headers: `Authorization: Bearer <ACCESS_TOKEN>`.
+
+---
+
+## 6-Phase End-to-End Workflow
+
+The Closed-Loop Mode consists of 6 integrated phases:
+
+```
+[Phase 1: Search & Filter] --> [Phase 2: Price & Inventory Lock] --> [Phase 3: Order & Cashier]
+     searchHotels                     hotelPriceConfirm                  createHotelBookingWithPaymentURL
+     getHotelDetail
+           │
+           ▼
+[Phase 4: Payment Completed] --> [Phase 5: Order & Voucher]      --> [Phase 6: Two-Phase Refund]
+     Web (paymentUrl)                 getHotelOrderDetail                preCancelHotelBooking (Quote)
+     Mini Program (miniProgram)       searchHotelOrders                  confirmCancelHotelBooking (Execute)
+```
+
+---
+
+### Phase 1: Search & Precise Room Filtering
+
+When a user requests accommodations, the Agent sequentially calls `searchHotels` and `getHotelDetail`:
+
+1. **`searchHotels`**: Filter candidates by destination, landmarks, dates, star ratings, and budget;
+2. **`getHotelDetail`**: Supports server-side exact filtering (e.g. `filter: { mealType: "DOUBLE_BREAKFAST", cancelable: "CANCELABLE" }`), directly returning matching room rate plans (`roomRatePlans`) without requiring the LLM to parse raw lists.
+
+---
+
+### Phase 2: Real-Time Price & Room Lock (30 Minutes)
+
+To protect users against inventory volatility or sudden price surges, the Agent **must call `hotelPriceConfirm`** once a room is selected:
+
+* **Key Outputs**:
+  * `referenceNo`: The unique lock quote reference (must be passed to the booking tool);
+  * `finalTotalAmount`: The locked final total price (including taxes & fees);
+  * `guestProfile`: Platform-suggested frequent guest profiles for one-click confirmation.
+* **Lock Expiration**: The locked price and room inventory remain guaranteed for **30 minutes**.
+
+```json
+{
+  "tool": "hotelPriceConfirm",
+  "arguments": {
+    "hotelID": 102906,
+    "ratePlanID": "RP_992019_DELUXE_BF2",
+    "numOfRooms": 1,
+    "dateParam": {
+      "checkInDate": "2026-11-01",
+      "checkOutDate": "2026-11-02"
+    },
+    "occupancyDetails": [
+      {
+        "roomNum": 1,
+        "adultCount": 2,
+        "childCount": 0
+      }
+    ]
+  }
+}
+```
+
+---
+
+### Phase 3: Booking Creation & Cashier Payment
+
+Upon user confirmation, the Agent calls `createHotelBookingWithPaymentURL` to create the formal booking:
+
+* **Key Inputs**: `referenceNo` from Phase 2, contact information, and guest list;
+* **Mutually Exclusive Payment Payload**:
+  * **Web/Browser Hosts**: Returns **`paymentUrl`** (secure checkout web string);
+  * **WeChat/Native Hosts**: Returns **`miniProgramPayInfo`** (native cashier launch object);
+  * See [Payment & Checkout Routing](/guides/payment) for detailed host handling.
+
+```json
+{
+  "tool": "createHotelBookingWithPaymentURL",
+  "arguments": {
+    "referenceNo": "REF_20261101_TYO_99812",
+    "contact": {
+      "firstName": "San",
+      "lastName": "Zhang",
+      "phone": "+1-202-555-0192",
+      "email": "zhangsan@example.com"
+    },
+    "guestList": [
+      {
+        "roomNum": 1,
+        "guestInfo": [
+          {
+            "firstName": "San",
+            "lastName": "Zhang",
+            "isAdult": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### Phase 4: Order Query & Check-In Vouchers
+
+Once payment is confirmed, users can track reservation status directly within chat:
+
+1. **`searchHotelOrders`**: Queries an order summary list (supports status filtering, lightweight output to prevent LLM context bloat);
+2. **`getHotelOrderDetail`**: Queries complete reservation details by `orderNo`, including:
+   * Confirmation voucher number (`hotelConfirmationNo`);
+   * Hotel physical address, GPS coordinates (`latitude`, `longitude`), and front desk phone;
+   * Check-in dates, guest names, and cancellation policy descriptions.
+
+> Note: For confirmed, cancelled, or expired orders, `paymentUrl` is safely set to `null` to prevent redundant redirects.
+
+---
+
+### Phase 5: Two-Phase Safe Cancellation (Quote-Execute)
+
+To prevent accidental cancellations caused by hallucination, cancellations follow a strict **two-phase mechanism**:
+
+#### Step 1: Pre-Cancellation Quote (`preCancelHotelBooking`)
+When a user requests a cancellation, call `preCancelHotelBooking`:
+* Evaluates cancellation penalties (`penaltyAmount`) and validates online cancellation eligibility;
+* Issues a dedicated **`confirmId`** valid for **10 minutes**.
+
+#### Step 2: Confirmation & Execution (`confirmCancelHotelBooking`)
+The Agent presents the penalty quote to the user (e.g. "Free cancellation available, penalty $0.00"). Upon explicit confirmation, the Agent invokes `confirmCancelHotelBooking` with `orderNo`, `bookingId`, and `confirmId` to execute irreversible cancellation.
+* The refund is automatically credited back to the original payment method.

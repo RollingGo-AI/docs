@@ -1,0 +1,139 @@
+---
+title: "Overview & Mode Selection"
+sidebarTitle: "Overview & Mode Selection"
+description: "Comprehensive comparison between RollingGo Hotel MCP Redirect Mode and Closed-Loop Mode to help you choose the right integration path."
+icon: "compass"
+---
+
+RollingGo Hotel Open Platform offers two core integration modes: **Redirect Mode** and **In-Agent Closed-Loop Mode**. Developers can flexibly select the mode that best fits their product architecture and transaction requirements.
+
+---
+
+## Core Mode Comparison
+
+| Dimension | Redirect Mode (Lightweight Query) | Closed-Loop Mode (In-Agent Transaction) |
+| :--- | :--- | :--- |
+| **Available Tools** | **3 Tools** (Search, Hotel Details, Search Tags) | **9 Tools** (Full lifecycle from search to checkout and refund) |
+| **Agent Core Role** | Search & recommendation, pushing booking link cards | Guiding user through search, price lock, booking, payment, order query, and cancellation |
+| **Booking & Payment** | User clicks link to complete booking on **RollingGo Web or Mini Program** | Order created in conversation; user completes payment via **cashier link** |
+| **Price Lock Ability** | Not supported | Supports `hotelPriceConfirm` to lock price and room inventory for 30 minutes |
+| **Order Management** | User checks orders independently on RollingGo portals | Direct in-conversation queries for order summary list and structured details |
+| **Cancellation & Refund** | User navigates to external portal | Two-phase safe cancellation (`preCancelHotelBooking` quote + `confirmCancelHotelBooking` execute) |
+| **Authentication** | **API Key Mode** (Header: `Authorization: Bearer <API_KEY>`) | **OAuth 2.0 / 2.1 Mode** (Authorization Code flow with PKCE) |
+| **Integration Effort** | Minimal (Setup in 5 minutes) | Standard (Enterprise-grade commercial closed-loop) |
+| **Recommended Scenarios** | • Search, comparison, and recommendation agents<br/>• Lightweight traffic redirection plugins<br/>• Scenarios without direct transaction handling | • Commercial AI travel concierges & assistants<br/>• Official brand conversational booking applications<br/>• Transaction-oriented agents requiring high conversion |
+
+---
+
+## Mode 1: Redirect Mode Sequence
+
+In Redirect Mode, the Agent only calls query tools. Users complete booking and payment by clicking the `bookingUrl` link card redirected to RollingGo official web or mini program:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as End User
+    participant Agent as AI Agent
+    participant RG as RollingGo MCP Service
+    participant WebApp as RollingGo Web/Mini Program
+    participant Pay as Payment Channels
+
+    User->>Agent: "Find a 5-star hotel near the Bund in Shanghai for tomorrow night"
+    Agent->>RG: searchHotels(Shanghai, The Bund, 5-star)
+    RG-->>Agent: Returns candidate hotels (with bookingUrl)
+    Agent-->>User: Displays recommendations with booking link cards
+
+    User->>Agent: "I like the first one, book it for me"
+    Agent-->>User: "Here is your reservation portal. Click the link to complete booking:"
+    Agent->>User: Sends bookingUrl card
+
+    User->>WebApp: Navigates to web page or mini program
+    User->>WebApp: Selects room, fills guest details, submits order
+    User->>Pay: Completes payment at cashier checkout
+    Pay-->>WebApp: Payment successful
+    WebApp-->>User: Shows confirmation and check-in voucher
+```
+
+---
+
+## Mode 2: Closed-Loop Mode Sequence
+
+In Closed-Loop Mode, the Agent utilizes all 9 tools, orchestrating the complete lifecycle within conversation:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as End User
+    participant Agent as AI Agent
+    participant MCP as RollingGo MCP Service
+    participant Cashier as Secure Cashier
+
+    Note over User, Cashier: Phase 1 - Search & Exact Room Filtering
+    User->>Agent: "Find 4-star+ hotels near Xixi Wetland with breakfast and free cancellation"
+    Agent->>MCP: searchHotels + getHotelDetail(with filters)
+    MCP-->>Agent: Returns filtered room rate plans
+    Agent-->>User: Recommends candidate rooms with real-time pricing
+
+    Note over User, Cashier: Phase 2 - Price & Availability Lock (30 Mins)
+    User->>Agent: "Book the Deluxe King Room"
+    Agent->>MCP: hotelPriceConfirm(hotelID, ratePlanID)
+    MCP-->>Agent: Locks price & inventory, returns referenceNo and guestProfile
+    Agent-->>User: Prompts locked price and cancellation policy, requests guest info
+
+    Note over User, Cashier: Phase 3 - Order Creation & Cashier Payment
+    User->>Agent: "Guest name San Zhang, phone 13800138000"
+    Agent->>MCP: createHotelBookingWithPaymentURL(referenceNo, contact, guestList)
+    MCP-->>Agent: Creates order, returns orderNo and payment voucher
+    Agent-->>User: Returns order number and payment link (30 min countdown)
+    User->>Cashier: Clicks paymentUrl or launches WeChat cashier to complete payment
+    Cashier-->>User: Payment successful
+
+    Note over User, Cashier: Phase 4 - Order Query & Voucher Details
+    User->>Agent: "Check the hotel order I just placed"
+    Agent->>MCP: getHotelOrderDetail(orderNo)
+    MCP-->>Agent: Returns full details (confirmation voucher, coordinates, phone)
+    Agent-->>User: Renders structured order voucher card
+
+    Note over User, Cashier: Phase 5 - Two-Phase Safe Cancellation
+    User->>Agent: "Plans changed, please cancel my reservation"
+    Agent->>MCP: preCancelHotelBooking(orderNo)
+    MCP-->>Agent: Quotes penalty=0, issues 10-min valid confirmId
+    Agent-->>User: Prompts: "Free cancellation available now. Confirm cancel?"
+    User->>Agent: "Confirm cancellation"
+    Agent->>MCP: confirmCancelHotelBooking(orderNo, confirmId)
+    MCP-->>Agent: Cancellation executed successfully, refund initiated
+    Agent-->>User: Confirms order cancelled and refund issued
+```
+
+---
+
+## Credentials & Account Provisioning
+
+| Channel | Target Audience | How to Apply | Deliverables |
+| :--- | :--- | :--- | :--- |
+| **Self-Service Portal** | All developers and creators | Register at [China Portal](https://partner.rollinggo.cn) or [Global Portal](https://partner.rollinggo.ai) | Instant `API Key` generation or OAuth app configuration |
+| **Enterprise / Business Provisioning** | Contracted enterprises and partners | Direct provisioning by RollingGo operations team | **API Key Mode**: Dedicated `API Key` & endpoints<br/>**OAuth Mode**: `clientId`, `clientSecret` & redirect configs |
+
+> Tip: Partners who received credentials directly from RollingGo operations **do not need to re-register on the open portal**.
+
+---
+
+## Service Endpoints Directory
+
+### Staging Environment
+
+| Service Node | Auth Mode | Endpoint URL | Default Language & Currency |
+| :--- | :--- | :--- | :--- |
+| **China Staging** | API Key Mode | `https://mcp-test.rollinggo.cn/mcp` | Chinese (`zh-CN`) / CNY (`CNY`) |
+| **China Staging** | OAuth 2.0 Mode | `https://travelportal-api-staging.aigohotel.com/api/mcp/hotel` | Chinese (`zh-CN`) / CNY (`CNY`) |
+| **Global Staging** | API Key Mode | `https://mcp-test.rollinggo.ai/mcp` | English (`en`) / USD (`USD`) |
+| **Global Staging** | OAuth 2.0 Mode | `https://travelportal-api-staging.aigohotel.com/api/mcp/hotel` | English (`en`) / USD (`USD`) |
+
+### Production Environment
+
+| Service Node | Auth Mode | Endpoint URL | Default Language & Currency | Core Highlights |
+| :--- | :--- | :--- | :--- | :--- |
+| **China Production** | API Key Mode | `https://mcp.rollinggo.cn/mcp` | Chinese (`zh-CN`) / CNY (`CNY`) | Fixed Chinese & CNY, Chinese enum values |
+| **China Production** | OAuth 2.0 Mode | `https://mcp.rollinggo.cn/mcp/hotel` | Chinese (`zh-CN`) / CNY (`CNY`) | Strong user-level auth with order isolation |
+| **Global Production** | API Key Mode | `https://mcp.rollinggo.ai/mcp` | English (`en`) / USD (`USD`) | Multi-language & 25 currencies real-time exchange |
+| **Global Production** | OAuth 2.0 Mode | `https://mcp.rollinggo.ai/mcp/hotel` | English (`en`) / USD (`USD`) | Global end-user authorization system |
