@@ -41,7 +41,8 @@
                 "pages": [
                   "mcp-docs/quick-start",
                   "mcp-docs/mcp-tool-reference",
-                  "mcp-docs/oauthdoc"
+                  "mcp-docs/oauthdoc",
+                  "update/update2"
                 ]
               },
               {
@@ -52,16 +53,16 @@
                 ]
               },
               {
-                "group": "FAQ",
-                "pages": [
-                  "faq/faq"
-                ]
-              },
-              {
                 "group": "Client Config & Auth",
                 "pages": [
                   "developer-insights/mcp-client-config",
                   "developer-insights/developer-insights-mcp-auth-comparison"
+                ]
+              },
+              {
+                "group": "FAQ",
+                "pages": [
+                  "faq/faq"
                 ]
               }
             ]
@@ -73,7 +74,7 @@
                 "group": "Changelog & Updates",
                 "pages": [
                   "update/update",
-                  "update/update2"
+                  "update/2026-07-30"
                 ]
               }
             ]
@@ -91,7 +92,8 @@
                 "pages": [
                   "zh/mcp-docs/quick-start",
                   "zh/mcp-docs/mcp-tool-reference",
-                  "zh/mcp-docs/oauthdoc"
+                  "zh/mcp-docs/oauthdoc",
+                  "zh/update/update2"
                 ]
               },
               {
@@ -123,7 +125,7 @@
                 "group": "版本更新日志",
                 "pages": [
                   "zh/update/update",
-                  "zh/update/update2"
+                  "zh/update/2026-07-30"
                 ]
               }
             ]
