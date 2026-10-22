@@ -36,30 +36,30 @@
               {
                 "group": "MCP Integration Guide",
                 "pages": [
-                  "mcp-docs/quick-start",
-                  "mcp-docs/mcp-tool-reference",
-                  "mcp-docs/oauthdoc",
-                  "update/update2"
+                  "guides/quick-start",
+                  "guides/tools",
+                  "guides/oauth",
+                  "guides/mini-program"
                 ]
               },
               {
                 "group": "Monetization & Partners",
                 "pages": [
-                  "partnerdoc/kol",
-                  "partnerdoc/partner1"
+                  "partners/kol",
+                  "partners/developers"
                 ]
               },
               {
                 "group": "Client Config & Auth",
                 "pages": [
-                  "developer-insights/mcp-client-config",
-                  "developer-insights/developer-insights-mcp-auth-comparison"
+                  "clients/config",
+                  "clients/auth-comparison"
                 ]
               },
               {
                 "group": "FAQ",
                 "pages": [
-                  "faq/faq"
+                  "faq"
                 ]
               }
             ]
@@ -97,30 +97,30 @@
               {
                 "group": "MCP 接入指南",
                 "pages": [
-                  "zh/mcp-docs/quick-start",
-                  "zh/mcp-docs/mcp-tool-reference",
-                  "zh/mcp-docs/oauthdoc",
-                  "zh/update/update2"
+                  "zh/guides/quick-start",
+                  "zh/guides/tools",
+                  "zh/guides/oauth",
+                  "zh/guides/mini-program"
                 ]
               },
               {
                 "group": "变现与合作指南",
                 "pages": [
-                  "zh/partnerdoc/kol",
-                  "zh/partnerdoc/partner1"
+                  "zh/partners/kol",
+                  "zh/partners/developers"
                 ]
               },
               {
                 "group": "客户端接入与比较",
                 "pages": [
-                  "zh/developer-insights/mcp-client-config",
-                  "zh/developer-insights/developer-insights-mcp-auth-comparison"
+                  "zh/clients/config",
+                  "zh/clients/auth-comparison"
                 ]
               },
               {
                 "group": "常见问题解答 (FAQ)",
                 "pages": [
-                  "zh/faq/faq"
+                  "zh/faq"
                 ]
               }
             ]
@@ -159,17 +159,107 @@
   "redirects": [
     {
       "source": "/en",
-      "destination": "/mcp-docs/quick-start",
+      "destination": "/guides/quick-start",
       "permanent": true
     },
     {
       "source": "/en/",
-      "destination": "/mcp-docs/quick-start",
+      "destination": "/guides/quick-start",
       "permanent": true
     },
     {
       "source": "/en/:path+",
       "destination": "/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/mcp-docs/quick-start",
+      "destination": "/guides/quick-start",
+      "permanent": true
+    },
+    {
+      "source": "/mcp-docs/mcp-tool-reference",
+      "destination": "/guides/tools",
+      "permanent": true
+    },
+    {
+      "source": "/mcp-docs/oauthdoc",
+      "destination": "/guides/oauth",
+      "permanent": true
+    },
+    {
+      "source": "/update/update2",
+      "destination": "/guides/mini-program",
+      "permanent": true
+    },
+    {
+      "source": "/developer-insights/mcp-client-config",
+      "destination": "/clients/config",
+      "permanent": true
+    },
+    {
+      "source": "/developer-insights/developer-insights-mcp-auth-comparison",
+      "destination": "/clients/auth-comparison",
+      "permanent": true
+    },
+    {
+      "source": "/partnerdoc/partner1",
+      "destination": "/partners/developers",
+      "permanent": true
+    },
+    {
+      "source": "/partnerdoc/kol",
+      "destination": "/partners/kol",
+      "permanent": true
+    },
+    {
+      "source": "/faq/faq",
+      "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/zh/mcp-docs/quick-start",
+      "destination": "/zh/guides/quick-start",
+      "permanent": true
+    },
+    {
+      "source": "/zh/mcp-docs/mcp-tool-reference",
+      "destination": "/zh/guides/tools",
+      "permanent": true
+    },
+    {
+      "source": "/zh/mcp-docs/oauthdoc",
+      "destination": "/zh/guides/oauth",
+      "permanent": true
+    },
+    {
+      "source": "/zh/update/update2",
+      "destination": "/zh/guides/mini-program",
+      "permanent": true
+    },
+    {
+      "source": "/zh/developer-insights/mcp-client-config",
+      "destination": "/zh/clients/config",
+      "permanent": true
+    },
+    {
+      "source": "/zh/developer-insights/developer-insights-mcp-auth-comparison",
+      "destination": "/zh/clients/auth-comparison",
+      "permanent": true
+    },
+    {
+      "source": "/zh/partnerdoc/partner1",
+      "destination": "/zh/partners/developers",
+      "permanent": true
+    },
+    {
+      "source": "/zh/partnerdoc/kol",
+      "destination": "/zh/partners/kol",
+      "permanent": true
+    },
+    {
+      "source": "/zh/faq/faq",
+      "destination": "/zh/faq",
       "permanent": true
     }
   ],
