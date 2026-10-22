@@ -1,19 +1,10 @@
 ---
-title: "Overview & Mode Selection"
-sidebarTitle: "Overview & Mode Selection"
+title: "Overview"
+sidebarTitle: "Overview"
 icon: "compass"
 ---
 
-> **Release Date**: 2026-10-16
-> **Target Environment**: Production (Active)
-> **Total Tool Count**: 9 Tools
-> **Field-Level Contract Reference**: See *RollingGo Hotel MCP Tool Field Reference*.
-
----
-
-# Part 1 · B2B Perspective: Integration Mode Selection & Setup
-
-## 1.1 Overview & Core Differences of the Two Integration Modes
+## 1. Overview & Core Differences of the Two Integration Modes
 
 The RollingGo Hotel Open Platform provides two core integration patterns for partners: **Redirect Mode** and **In-Agent Closed-Loop Mode**:
 
@@ -32,7 +23,7 @@ The RollingGo Hotel Open Platform provides two core integration patterns for par
 
 ---
 
-## 1.2 Mode 1: Redirect Mode (Query Only, bookingUrl Handles Booking)
+## 2. Mode 1: Redirect Mode (Query Only, bookingUrl Handles Booking)
 
 ### Interaction Characteristics
 
@@ -71,7 +62,7 @@ sequenceDiagram
 
 ---
 
-## 1.3 Mode 2: In-Agent Closed-Loop Mode (Full In-Chat Transactional Loop)
+## 3. Mode 2: In-Agent Closed-Loop Mode (Full In-Chat Transactional Loop)
 
 ### Interaction Characteristics
 
@@ -137,7 +128,7 @@ sequenceDiagram
 
 ---
 
-## 1.4 Account Provisioning & Credential Acquisition Channels
+## 4. Account Provisioning & Credential Acquisition Channels
 
 Partners can obtain access credentials through the following two channels:
 
@@ -154,7 +145,7 @@ Partners can obtain access credentials through the following two channels:
 * **Provisioning Method**: The RollingGo operations team directly creates and configures accounts in the admin console, securely delivering credentials offline:
   * **API Key Mode Deliverables**: Dedicated `API Key` (format `mcp_xxxxx...`) and assigned service endpoints;
   * **OAuth 2.1 Mode Deliverables**: `clientId`, `clientSecret`, and pre-registered callback configuration.
-* **Fast Track**: Partners who receive credentials directly from operations **do not need to register online again**; proceed directly to [1.5 Service Nodes &amp; Integration Endpoints](#15-service-nodes--integration-endpoints) and [1.6 Agent Client Configuration Examples](#16-agent-client-configuration-examples).
+* **Fast Track**: Partners who receive credentials directly from operations **do not need to register online again**; proceed directly to [5. Service Nodes &amp; Integration Endpoints](#5-service-nodes--integration-endpoints) and [6. Agent Client Configuration Examples](#6-agent-client-configuration-examples).
 
 ---
 
@@ -173,7 +164,7 @@ Partners can obtain access credentials through the following two channels:
 
 ---
 
-## 1.5 Service Nodes & Integration Endpoints
+## 5. Service Nodes & Integration Endpoints
 
 RollingGo provides dual service nodes for users in Mainland China and globally. The endpoint URLs are as follows:
 
@@ -186,9 +177,9 @@ RollingGo provides dual service nodes for users in Mainland China and globally. 
 
 ---
 
-## 1.6 Agent Client Configuration Examples
+## 6. Agent Client Configuration Examples
 
-### 1.6.1 API Key Mode Configuration (Claude Desktop / Claude CLI)
+### 6.1 API Key Mode Configuration (Claude Desktop / Claude CLI)
 
 Create or update `.mcp.json` (or `claude_desktop_config.json`) in project root or global configuration:
 
@@ -217,7 +208,7 @@ claude mcp add \
   https://mcp.rollinggo.ai/mcp
 ```
 
-### 1.6.2 OAuth 2.1 Mode Configuration (Claude Code / Web Client)
+### 6.2 OAuth Mode Configuration (Claude Code / Web Client)
 
 ```jsonc
 {
