@@ -1,0 +1,7 @@
+:root {
+  --content-width: 56rem;
+}
+
+#content-area {
+  max-width: var(--content-width) !important;
+}
