@@ -1,12 +1,7 @@
 ---
 title: "工具矩阵与接口规范"
 sidebarTitle: "工具矩阵与规范"
-description: "RollingGo 酒店 MCP 全量 9 大核心 Tool 矩阵对照、入参出参契约与调用规范。"
 icon: "toolbox"
----
-
-RollingGo 酒店 MCP 服务遵循标准化的 JSON-RPC 2.0 契约，提供从酒店信息检索到生单支付、履约查单及售后退订的 **9 大核心 Tool**。
-
 ---
 
 ## 核心 Tool 矩阵总览
@@ -25,102 +20,601 @@ RollingGo 酒店 MCP 服务遵循标准化的 JSON-RPC 2.0 契约，提供从酒
 
 ---
 
-## 9 大核心 Tool 字段级规范
-
-### 1. `getHotelSearchTags`（获取搜索标签）
-* **定位**：用于智能体了解平台支持的所有标签维度（如“免费WiFi”、“含早”、“亲子酒店”、“泳池”等）。
-* **核心出参**：`tags` 字符串数组。
-
----
-
-### 2. `searchHotels`（酒店初筛搜索）
-* **定位**：根据地点、时间、星级、价格等初筛酒店候选列表。
-* **核心入参**：
-  * `place` (String, 必填)：搜索目的地或地标名称。
-  * `placeType` (String, 必填)：地标类型（国内节点为中文枚举：`"城市"`、`"景点"`、`"商圈"`、`"火车站"`、`"机场"`；国际节点为英文枚举）。
-  * `checkInParam` (Object, 必填)：包含 `checkInDate` (YYYY-MM-DD)、`stayNights` (Int)、`adultCount` (Int)。
-  * `filterOptions` (Object, 选填)：`starRatings` (星级数组，如 `[4.0, 5.0]`)。
-  * `hotelTags` (Object, 选填)：`maxPricePerNight` (每晚最高预算)、`requiredTags` (必选标签数组)。
-  * `size` (Int, 选填)：返回酒店数量（默认为 5，支持 1~10）。
-  * `nextPageToken` (String, 选填)：向后翻页凭证。
-  * `localeParam` (Object, 国际节点)：`language` 与 `currency`（支持 25 种货币实时换汇）。
-* **核心出参**：
-  * `hotelList`：酒店列表，包含 `hotelId`、`hotelName`、`starRating`、`priceInfo` 及 `bookingUrl`。
-  * `nextPageToken`：后续翻页凭证（无下一页时为 null）。
+> **更新日期**：2026-10-16
+> **适用环境**：生产环境（正式上线）
+> **Tool 数量**：9 个
+> **服务端点**：
+> • **API Key 模式**：国内版 `https://mcp.rollinggo.cn/mcp` / 国际版 `https://mcp.rollinggo.ai/mcp`
+> • **OAuth 2.1 模式**：国内版 `https://mcp.rollinggo.cn/mcp/hotel` / 国际版 `https://mcp.rollinggo.ai/mcp/hotel`
+>
+> 💡 **国内版 (`cn`) vs 国际版 (`ai`) 核心字段差异说明**：
+>
+> 1. **国际化参数 (`localeParam`)**：仅**国际版**在搜索、查价、锁价接口中支持 `localeParam: { currency, language }`（默认 `USD`，支持 25 种货币；默认 `en`，支持 `en`/`zh`/`ja`）；**国内版**固定为中文（`zh-CN`）与人民币（`CNY`），无需且不支持传入 `localeParam`。
+> 2. **地点类型枚举 (`placeType`)**：国内版使用中文枚举（如 `城市`、`机场`、`景点`、`酒店` 等）；国际版使用英文枚举（如 `city`、`airport`、`point_of_interest`、`hotel` 等）。
+> 3. **废弃字段**：两版均已废弃并移除 `countryCode` 与 `nationality`。
+> 4. **联系人邮箱约束 (`contact.email`)**：国内版为 **必填**；国际版为 **非必填**（仅需 `firstName`, `lastName`）。
+> 5. **房型筛选 (`filter`)**：两版均完整支持。
+> 6. **订单取消工具 (`preCancelHotelBooking` / `confirmCancelHotelBooking`)**：两版参数结构与两阶段安全取消机制完全一致，原生支持多语言文案。
+> 7. **支付凭证与原生收银适配 **：创单（`createHotelBookingWithPaymentURL`）、查单（`getHotelOrderDetail`）及列表（`searchHotelOrders`）支持两种支付字段形态：**`paymentUrl`**（Web 链接类支付）与 **`miniProgramPayInfo`**（微信小程序类支付）。系统根据接入环境二选一互斥返回（仅展示当前环境对应字段，彻底隐藏另一个字段）；非待支付状态（已支付、已取消、超时失效）统一返回 `null`。
 
 ---
 
-### 3. `getHotelDetail`（查询房型详情与套餐）
-* **定位**：查询指定酒店的完整房型信息、图文设施，并支持服务端精准过滤。
-* **核心入参**：
-  * `hotelId` (Int, 必填)：酒店 ID。
-  * `dateParam` (Object, 必填)：`checkInDate` 与 `checkOutDate`。
-  * `occupancyParam` (Object, 必填)：`roomCount` 与 `adultCount`。
-  * `filter` (Object, 选填·推荐)：
-    * `mealType`：餐食筛选（如 `"DOUBLE_BREAKFAST"`、`"SINGLE_BREAKFAST"`、`"NO_MEAL"`）；
-    * `cancelable`：退改筛选（`"CANCELABLE"` 免费取消）。
-* **核心出参**：`roomRatePlans`（包含房型名、面积、床型、餐食、退改规则及价格明细）。
+## 目录
+
+- [1. getHotelSearchTags — 获取搜索标签](#1-gethotelsearchtags--获取搜索标签)
+- [2. searchHotels — 搜索全球酒店](#2-searchhotels--搜索全球酒店)
+- [3. getHotelDetail — 获取酒店详情与房型报价](#3-gethoteldetail--获取酒店详情与房型报价)
+- [4. hotelPriceConfirm — 价格确认与锁价](#4-hotelpriceconfirm--价格确认与锁价)
+- [5. createHotelBookingWithPaymentURL — 创建酒店订单](#5-createhotelbookingwithpaymenturl--创建酒店订单)
+- [6. searchHotelOrders — 查询订单列表](#6-searchhotelorders--查询订单列表)
+- [7. getHotelOrderDetail — 查询订单详情](#7-gethotelorderdetail--查询订单详情)
+- [8. preCancelHotelBooking — 预取消订单与罚金试算](#8-precancelhotelbooking--预取消订单与罚金试算)
+- [9. confirmCancelHotelBooking — 确认并执行订单取消](#9-confirmcancelhotelbooking--确认并执行订单取消)
+- [10. 统一错误码与异常映射](#10-统一错误码与异常映射)
 
 ---
 
-### 4. `hotelPriceConfirm`（价格锁定与验价 · 闭环专属）
-* **定位**：生单前锁定 30 分钟实时价格与房态，杜绝跳价。
-* **核心入参**：`hotelID`、`ratePlanID`、`numOfRooms`、`dateParam`、`occupancyDetails`。
-* **核心出参**：
-  * `referenceNo`：锁定凭证号（必须在创建订单时回传）；
-  * `finalTotalAmount`：锁定的最终应付总价；
-  * `guestProfile`：常住旅客画像信息（推荐姓名、证件及联系方式）。
+## 1. getHotelSearchTags — 获取搜索标签
+
+### 功能说明
+
+获取所有启用的酒店筛选标签。
+
+### Input 参数
+
+无。
+
+### Output 输出
+
+| 字段                          | 类型    | 能否为空 | 说明                                                  |
+| :---------------------------- | :------ | :------- | :---------------------------------------------------- |
+| `success`                   | boolean | ❌ 否    | 接口是否执行成功                                      |
+| `tags`                      | array   | ❌ 否    | 标签数据列表                                          |
+| `tags[].name`               | string  | ❌ 否    | 标签展示名称（如`"免费WiFi"`、`"当地连锁"` 等）   |
+| `tags[].category`           | string  | ❌ 否    | 标签所属分类（如`"景观与房型"`、`"核心设施"` 等） |
+| `usageGuide`                | object  | ❌ 否    | 大模型使用过滤偏好指导                                |
+| `usageGuide.tagUsage`       | string  | ❌ 否    | 标签在请求体中的组合绑定指南文字                      |
+| `usageGuide.exampleRequest` | string  | ❌ 否    | 包含标签筛选的完整请求 JSON 示例字符串                |
 
 ---
 
-### 5. `createHotelBookingWithPaymentURL`（生单与收银台 · 闭环专属）
-* **定位**：提交住客信息创建订单，并下发支付收银台凭证。
-* **核心入参**：
-  * `referenceNo` (String, 必填)：由 `hotelPriceConfirm` 返回的锁定凭证。
-  * `contact` (Object, 必填)：联系人姓名、手机号及邮箱。
-  * `guestList` (Array, 必填)：每间房的实际入住旅客姓名列表。
-* **核心出参**：
-  * `orderNo`：正式订单号。
-  * `paymentUrl`：Web 收银台网页链接（Web 环境下发）。
-  * `miniProgramPayInfo`：小程序原生收银台调起对象（微信小程序环境下发）。
+## 2. searchHotels — 搜索全球酒店
+
+### 功能说明
+
+根据筛选条件在指定的限定区域进行全球酒店初筛，返回候选酒店列表及展示用首夜预估最低零售价。
+
+### Input 参数（全部字段 📋）
+
+| 参数                              | 类型     | 必填 | 默认值                      | 说明                                                                                                                                                                                                                                                                                                         |
+| :-------------------------------- | :------- | :--- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `originQuery`                   | string   | ✅   | —                          | 针对多轮会话提炼出的完整住宿意图描述文本                                                                                                                                                                                                                                                                     |
+| `place`                         | string   | ✅   | —                          | 目标搜索名称（地名/机场/景点/车站/具体酒店名等）                                                                                                                                                                                                                                                             |
+| `placeType`                     | string   | ✅   | —                          | 地点类型。**国内版**使用中文枚举（`城市`、`机场`、`景点`、`火车站`、`地铁站`、`酒店`、`区/县`、`详细地址`）；**国际版**使用英文枚举（`city`、`airport`、`point_of_interest`、`train_station`、`subway_station`、`hotel`、`district/county`、`detailed address`） |
+| `checkInParam`                  | object   | ❌   | —                          | 入住及入住晚数信息包                                                                                                                                                                                                                                                                                         |
+| `checkInParam.checkInDate`      | string   | ❌   | 明天                        | 入住开始时间，格式`YYYY-MM-DD`                                                                                                                                                                                                                                                                             |
+| `checkInParam.stayNights`       | integer  | ❌   | `1`                       | 入住晚数（范围为`1` ~ `28`） [format: int32]                                                                                                                                                                                                                                                             |
+| `checkInParam.adultCount`       | integer  | ❌   | `2`                       | 每间房屋成人数 [format: int32]                                                                                                                                                                                                                                                                               |
+| `localeParam`                   | object   | ❌   | —                          | **【仅国际版支持】** 语言与币种偏好包（国内版固定中文+CNY，无需传入；替代原 countryCode）                                                                                                                                                                                                              |
+| `localeParam.language`          | string   | ❌   | `en`（国际版）/ `zh-CN` | 语言代码（如`en`、`zh`、`ja`）                                                                                                                                                                                                                                                                         |
+| `localeParam.currency`          | string   | ❌   | `USD`（国际版）/ `CNY`  | 结算币种代码（如`USD`、`EUR`、`JPY`、`HKD` 等 25 种国际货币）                                                                                                                                                                                                                                        |
+| `filterOptions`                 | object   | ❌   | —                          | 地理解析及星级过滤层配置                                                                                                                                                                                                                                                                                     |
+| `filterOptions.distanceInMeter` | integer  | ❌   | `2000`                    | 直线物理距离限制（米），placeType 为景点/机场时生效 [format: int32]                                                                                                                                                                                                                                          |
+| `filterOptions.starRatings`     | float[]  | ❌   | `[0.0, 5.0]`              | 星级范围数组，取值 0.0-5.0（步长为 0.5）                                                                                                                                                                                                                                                                     |
+| `hotelTags`                     | object   | ❌   | —                          | 高级标签、品牌及预算限制级过滤包                                                                                                                                                                                                                                                                             |
+| `hotelTags.requiredTags`        | string[] | ❌   | —                          | 必须满足的硬性条件标签列表                                                                                                                                                                                                                                                                                   |
+| `hotelTags.preferredBrands`     | string[] | ❌   | —                          | 连锁品牌名称偏好列表                                                                                                                                                                                                                                                                                         |
+| `hotelTags.maxPricePerNight`    | float    | ❌   | —                          | 每房每晚的预算本币价格上限（按所传 currency 币种理解）                                                                                                                                                                                                                                                       |
+| `size`                          | integer  | ❌   | `5`                       | 返回的酒店数量限制（最大`20`） [format: int32]                                                                                                                                                                                                                                                             |
+
+### Output 输出
+
+#### 顶层字段
+
+| 字段                     | 类型    | 能否为空 | 说明                       |
+| :----------------------- | :------ | :------- | :------------------------- |
+| `success`              | boolean | ❌ 否    | 查询是否成功               |
+| `message`              | string  | ❌ 否    | 业务层处理反馈消息         |
+| `hotelInformationList` | array   | ❌ 否    | 符合筛选要求的酒店对象列表 |
+
+#### hotelInformationList[] 酒店数据结构
+
+| 字段                  | 类型         | 能否为空 | 说明                                                                             |
+| :-------------------- | :----------- | :------- | :------------------------------------------------------------------------------- |
+| `hotelId`           | integer      | ❌ 否    | 酒店唯一ID编码（传给 getHotelDetail 获取报价的首选参数）                         |
+| `bookingUrl`        | string       | ✅ 是    | 对应酒店详情及订购 H5 页面前端静态路由 URL；与`miniProgramInfo` **互斥** |
+| `miniProgramInfo`   | object       | ✅ 是    | 微信小程序落地结构化对象，按渠道形态精简输出（与`bookingUrl` **互斥**）  |
+| `name`              | string       | ❌ 否    | 酒店中文名称（根据 localeParam.language 本地化返回）                             |
+| `nameEn`            | string       | ❌ 否    | 酒店官方英文拼写长名称                                                           |
+| `brand`             | string/null  | ✅ 是    | 品牌名称（仅品牌酒店返回）                                                       |
+| `address`           | string       | ❌ 否    | 详细物理路由地址                                                                 |
+| `destinationId`     | string       | ❌ 否    | 目的地二级 ID 标识                                                               |
+| `distanceInMeters`  | integer/null | ✅ 是    | 距搜索中心点的直线距离（仅搜索 POI 且有距离匹配时返回）                          |
+| `latitude`          | double       | ❌ 否    | 酒店地理位置纬度（WGS-84标准）                                                   |
+| `longitude`         | double       | ❌ 否    | 酒店地理位置经度（WGS-84标准）                                                   |
+| `starRating`        | number       | ❌ 否    | 酒店评级星级（1-5级）                                                            |
+| `price`             | object       | ❌ 否    | 最低首夜报价信息包（供初筛展示）                                                 |
+| `price.hasPrice`    | boolean      | ❌ 否    | 该入住时间内是否有报价                                                           |
+| `price.currency`    | string       | ❌ 否    | 结算币种代码（按 localeParam.currency 实时折算，如`CNY`、`JPY`、`USD`）    |
+| `price.lowestPrice` | number       | ❌ 否    | 最低参考折后间夜价（已按结算币种实时换汇）                                       |
+| `price.message`     | string       | ❌ 否    | 价格说明文案                                                                     |
+| `areaCode`          | string       | ❌ 否    | 国家归属二位地区码（如`CN`）                                                   |
+| `description`       | string       | ❌ 否    | 酒店详情富文本描述信息（带 HTML 标签）                                           |
+| `imageUrl`          | string       | ❌ 否    | 酒店主图/封面图 CDN 地址 URL                                                     |
+| `hotelAmenities`    | string[]     | ❌ 否    | 酒店配置的硬件设施/服务的字符列表                                                |
+| `tags`              | string[]     | ❌ 否    | 从酒店静态特征提取的符合用户搜索定位的简短标签                                   |
 
 ---
 
-### 6. `searchHotelOrders`（订单列表概览 · 闭环专属）
-* **定位**：查询当前用户名下的酒店订单简要列表。
-* **核心入参**：`status` (选填，如 `"WAITING_PAYMENT"`、`"CONFIRMED"`)、`page`、`size`。
-* **核心出参**：轻量级订单概要列表，包含订单号、酒店名、入离日期、金额与状态。
+## 3. getHotelDetail — 获取酒店详情与房型报价
+
+### 功能说明
+
+查询特定酒店所有可售房型、间夜均价以及对应的退改规则。支持在服务端按餐食（`mealType`）与免费取消（`cancelable`）进行精准过滤。
+
+### Input 参数（全部字段 📋）
+
+*`hotelId` 与 `name` 二选一，优先使用 `hotelId` 进行高精度命中。*
+
+| 参数                               | 类型      | 必填        | 默认值                      | 说明                                                                            |
+| :--------------------------------- | :-------- | :---------- | :-------------------------- | :------------------------------------------------------------------------------ |
+| `hotelId`                        | integer   | ⚠️ 二选一 | —                          | 酒店唯一ID [format: int32]                                                      |
+| `name`                           | string    | ⚠️ 二选一 | —                          | 酒店名称（模糊搜索，无 ID 时使用）                                              |
+| `dateParam`                      | object    | ❌          | —                          | 入离店日期配置包                                                                |
+| `dateParam.checkInDate`          | string    | ❌          | —                          | 入住日期，格式`YYYY-MM-DD`                                                    |
+| `dateParam.checkOutDate`         | string    | ❌          | —                          | 离店日期，格式`YYYY-MM-DD`（必须晚于 checkInDate）                            |
+| `occupancyParam`                 | object    | ❌          | —                          | 房间间数及住宿名额约束                                                          |
+| `occupancyParam.roomCount`       | integer   | ❌          | `1`                       | 拟预订间数 [format: int32]                                                      |
+| `occupancyParam.adultCount`      | integer   | ❌          | `2`                       | 每间拟入住成人数 [format: int32]                                                |
+| `occupancyParam.childCount`      | integer   | ❌          | `0`                       | 每间拟入住儿童数 [format: int32]                                                |
+| `occupancyParam.childAgeDetails` | integer[] | ❌          | —                          | 儿童年龄数组（长度须与 childCount 严格对齐）                                    |
+| `localeParam`                    | object    | ❌          | —                          | **【仅国际版支持】** 语言与币种偏好包（国内版固定人民币 CNY，无需传入）   |
+| `localeParam.language`           | string    | ❌          | `en`（国际版）/ `zh-CN` | 语言代码（如`en`、`zh`、`ja`）                                            |
+| `localeParam.currency`           | string    | ❌          | `USD`（国际版）/ `CNY`  | 币种代码（如`USD`、`EUR`、`JPY`、`HKD` 等 25 种国际货币）               |
+| `filter`                         | object    | ❌          | —                          | **房型筛选条件包（未传或为空时返回全量房型，国内版与国际版均支持）**      |
+| `filter.mealType`                | string    | ❌          | —                          | 餐食类别筛选，如`"含早餐"`、`"单份早餐"`、`"双份早餐"`、`"不含餐食"` 等 |
+| `filter.cancelable`              | string    | ❌          | —                          | 退改政策筛选，如`"可免费取消"`、`"不可取消"` 等                             |
+
+#### 房型筛选多语言输入兼容矩阵
+
+| 筛选维度                            | 业务逻辑                    | 标准英文枚举（推荐）            | 中文兼容别名                       | 日文兼容别名                               |
+| :---------------------------------- | :-------------------------- | :------------------------------ | :--------------------------------- | :----------------------------------------- |
+| **餐食筛选** (`mealType`)   | `mealAmount > 0`（含早）  | `"BREAKFAST_INCLUDED"`        | `"含早餐"`, `"含早"`           | `"朝食付き"`, `"朝食あり"`             |
+|                                     | `mealAmount == 1`（单早） | `"SINGLE_BREAKFAST"`          | `"单份早餐"`, `"单早"`         | `"1名朝食付き"`                          |
+|                                     | `mealAmount == 2`（双早） | `"DOUBLE_BREAKFAST"`          | `"双份早餐"`, `"双早"`         | `"2名朝食付き"`                          |
+|                                     | `mealAmount == 0`（无早） | `"NO_MEAL"` / `"ROOM_ONLY"` | `"不含餐食"`, `"无早"`         | `"食事なし"`, `"素泊まり"`             |
+| **退改筛选** (`cancelable`) | 仅可免费取消                | `"CANCELABLE"`                | `"可免费取消"`, `"免费取消"`   | `"無料キャンセル"`, `"キャンセル可能"` |
+|                                     | 仅不可免费取消              | `"NON_CANCELABLE"`            | `"不可取消"`, `"不可免费取消"` | `"キャンセル不可"`                       |
+
+### Output 输出
+
+#### 顶层字段
+
+| 字段                | 类型    | 能否为空 | 说明                                                                            |
+| :------------------ | :------ | :------- | :------------------------------------------------------------------------------ |
+| `success`         | boolean | ❌ 否    | 本次查询是否在业务层成功                                                        |
+| `hotelId`         | integer | ❌ 否    | 酒店 ID 标识                                                                    |
+| `name`            | string  | ❌ 否    | 酒店中文名                                                                      |
+| `nameEn`          | string  | ❌ 否    | 酒店官方英文拼写长名称                                                          |
+| `checkIn`         | string  | ❌ 否    | 查询确认的入住日期`YYYY-MM-DD`                                                |
+| `checkOut`        | string  | ❌ 否    | 查询确认的退房日期`YYYY-MM-DD`                                                |
+| `bookingUrl`      | string  | ✅ 是    | 酒店详情预订 H5 页面前端静态路由 URL；与`miniProgramInfo` **互斥**      |
+| `miniProgramInfo` | object  | ✅ 是    | 微信小程序落地结构化对象，按渠道形态精简输出（与`bookingUrl` **互斥**） |
+| `roomRatePlans`   | array   | ❌ 否    | 房型级下的实时销售价格套餐计划列表（已按 filter 条件过滤）                      |
+| `message`         | string  | ❌ 否    | 说明或反馈文案（如无匹配房型时提示相应文案）                                    |
+
+#### miniProgramInfo 结构与渠道形态矩阵
+
+| 形态 ID (`type`)     | 适用场景       | 技术载体 / 生成方式                           | 前置依赖                     | `miniProgramInfo` 输出字段                                                                             |
+| :--------------------- | :------------- | :-------------------------------------------- | :--------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `H5`（默认形态）     | 浏览器 / H5    | 默认 H5 链接字符串                            | 无                           | *不返回 miniProgramInfo，仅返回顶层 `bookingUrl` (string)*                                           |
+| `H5_TO_MINIAPP`      | H5 跳转小程序  | 微信加密 URL Link (`https://wxmpurl.cn/*`)  | 小程序已发布                 | `type`: `"H5_TO_MINIAPP"url`: 微信加密 URL Link 短链                                                 |
+| `APP_TO_MINIAPP`     | APP 跳转小程序 | 明文 Scheme (`weixin://dl/business/?...`)   | 微信后台开启明文 Scheme 拉起 | `type`: `"APP_TO_MINIAPP"url`: 明文 Scheme                                                           |
+| `MINIAPP_TO_MINIAPP` | 小程序内跳转   | 结构化参数 (`appId` + `path` + `query`) | 渠道端实现跳转事件           | `type`: `"MINIAPP_TO_MINIAPP"appId`: 小程序 AppID`path`: 纯路径（不含参）`query`: 独立动态参数串 |
+
+#### roomRatePlans[] 房型套餐子对象
+
+| 字段                      | 类型        | 能否为空 | 说明                                                                        |
+| :------------------------ | :---------- | :------- | :-------------------------------------------------------------------------- |
+| `roomName`              | string      | ❌ 否    | 房型标准英文名称                                                            |
+| `roomNameCn`            | string      | ❌ 否    | 房型标准中文描述名（如`"高级大床房"`）                                    |
+| `ratePlanId`            | string      | ❌ 否    | 该套餐对应时段的唯一报价方案 ID（**确认锁价的 ratePlanID 入参**）     |
+| `ratePlanName`          | string      | ❌ 否    | 价格计划名称（含床宽、宿客类型等描述）                                      |
+| `averagePrice`          | number      | ❌ 否    | 针对该时段均摊每一间夜的折后总含税均价（已按结算币种换汇）                  |
+| `bedTypeDescription`    | string      | ❌ 否    | 物理床宽床型中/英文直接描述（如`"1 特大床"`、`"2 单人床"`）             |
+| `currency`              | string      | ❌ 否    | 结算时对应的货币代号（如`CNY`、`JPY`、`USD`）                         |
+| `mealAmount`            | integer     | ❌ 否    | 此套餐附赠的早餐份数（如：不含餐为`0`；含双早为 `2`）                   |
+| `mealTypeStr`           | string      | ❌ 否    | 餐食类型描述文案（如`"不含早餐"`、`"含早餐"`）                          |
+| `isOnRequest`           | boolean     | ❌ 否    | 是否需延迟人工放盘审批；`false` 表示立订，`true` 表示需要人工录入单确认 |
+| `cancelPolicy`          | string      | ❌ 否    | 退改简易规则描述文本（如`"不可免费取消"`、`"免费取消"` 等）             |
+| `roomInfo`              | object      | ❌ 否    | 房型静态设施信息包                                                          |
+| `roomInfo.hasWifi`      | boolean     | ❌ 否    | 房间是否含 WiFi                                                             |
+| `roomInfo.hasWindow`    | boolean     | ❌ 否    | 房间是否有窗                                                                |
+| `roomInfo.maxOccupancy` | integer     | ❌ 否    | 房间最大入住人数上限                                                        |
+| `roomInfo.size`         | string      | ❌ 否    | 房间面积（平方米文字说明，如`"36"`）                                      |
+| `roomInfo.smoking`      | string      | ❌ 否    | 吸烟政策描述（如`"不可吸烟"`、`"可吸烟"`）                              |
+| `roomInfo.images`       | string/null | ✅ 是    | 房型首图 URL，无有效图片时返回`null`                                      |
 
 ---
 
-### 7. `getHotelOrderDetail`（订单完整详情与凭证 · 闭环专属）
-* **定位**：查询单笔订单全部结构化履约信息。
-* **核心入参**：`orderNo` (String, 必填)。
-* **核心出参**：
-  * `hotelConfirmationNo`：酒店入离凭证号。
-  * `hotelInfo`：酒店物理地址、导航坐标 (`latitude`, `longitude`)、前台电话。
-  * `stayInfo`：入离日期、房型名、餐食政策、住客姓名。
-  * `priceInfo`：总金额与支付状态（已支付时 `paymentUrl` 自动为 null）。
-  * `policyInfo`：免费退改截止时间与退改政策描述。
+## 4. hotelPriceConfirm — 价格确认与锁价
+
+### 功能说明
+
+锁定选定房型的实时最终价格，获取预订参考流水号 `referenceNo`，锁定有效期 30 分钟。同时返回预填常住旅客画像 `guestProfile`。
+
+### Input 参数（全部字段 📋）
+
+| 参数                                   | 类型      | 必填 | 默认值 | 说明                                                                                             |
+| :------------------------------------- | :-------- | :--- | :----- | :----------------------------------------------------------------------------------------------- |
+| `hotelID`                            | integer   | ✅   | —     | 酒店唯一ID编码 [format: int32]                                                                   |
+| `ratePlanID`                         | string    | ✅   | —     | getHotelDetail 房型套餐返回的 ratePlanId                                                         |
+| `numOfRooms`                         | integer   | ✅   | `1`  | 本次需要锁定的房间间数 [format: int32]                                                           |
+| `localeParam`                        | object    | ❌   | —     | **【仅国际版支持】** 语言与币种偏好包（包含 `currency` 与 `language`，国内版无需传入） |
+| `dateParam`                          | object    | ✅   | —     | 日期控制体                                                                                       |
+| `dateParam.checkInDate`              | string    | ✅   | —     | 入住日期，格式`YYYY-MM-DD`                                                                     |
+| `dateParam.checkOutDate`             | string    | ✅   | —     | 离店日期，格式`YYYY-MM-DD`                                                                     |
+| `occupancyDetails`                   | array     | ✅   | —     | 房间实际人数配比，项数等同于`numOfRooms`                                                       |
+| `occupancyDetails[].roomNum`         | integer   | ✅   | `1`  | 房间序号（由 `1` 开始递增，与 `numOfRooms` 项数一致） [format: int32]                           |
+| `occupancyDetails[].adultCount`      | integer   | ✅   | `2`  | 该房拟入住成年人数 [format: int32]                                                               |
+| `occupancyDetails[].childCount`      | integer   | ❌   | `0`  | 该房拟入住儿童数 [format: int32]                                                                 |
+| `occupancyDetails[].childAgeDetails` | integer[] | ❌   | —     | 儿童年龄数组，若有儿童需传年龄                                                                   |
+
+### Output 输出（全部字段 📋）
+
+| 字段                              | 类型    | 能否为空 | 说明                                                   |
+| :-------------------------------- | :------ | :------- | :----------------------------------------------------- |
+| `success`                       | boolean | ❌ 否    | 锁价是否成功                                           |
+| `code`                          | integer | ❌ 否    | 业务状态码（`2000` 表示成功）                        |
+| `message`                       | string  | ❌ 否    | 锁价结果说明                                           |
+| `priceDetailsInfo`              | object  | ❌ 否    | 锁价详细数据对象                                       |
+| `priceDetailsInfo.referenceNo`  | string  | ❌ 否    | **锁定成功返回的流水凭证号（重要，生单时使用）** |
+| `priceDetailsInfo.checkInDate`  | string  | ❌ 否    | 确认的入住时间                                         |
+| `priceDetailsInfo.checkOutDate` | string  | ❌ 否    | 确认的离店时间                                         |
+| `priceDetailsInfo.hotelList`    | array   | ❌ 否    | 包含房型、价格、币种与取消政策明细                     |
+| `guestProfile`                  | object  | ✅ 是    | 预填常住旅客信息包（用于 Agent 辅助用户快捷填单）      |
 
 ---
 
-### 8. `preCancelHotelBooking`（两阶段预取消试算 · 闭环专属）
-* **定位**：退订第一阶段，试算取消罚金，派发 10 分钟凭证。
-* **核心入参**：`orderNo` (String, 必填)。
-* **核心出参**：
-  * `canCancel` (Boolean)：是否允许在线取消。
-  * `penaltyAmount` (Float)：试算取消罚金（0.00 代表免费取消）。
-  * `bookingId` (String)：底层预订标识。
-  * `confirmId` (String)：**10 分钟有效的取消凭证号**。
+## 5. createHotelBookingWithPaymentURL — 创建酒店订单
+
+### 功能说明
+
+提交用户入住信息，建立有效预订并获取收银台支付信息。
+
+系统根据调用方所处环境（Web/浏览器 或 微信/小程序），**二选一**返回支付凭证：
+1. **`paymentUrl`**：Web 支付链接，在浏览器或 Web 容器中直接打开即可完成支付；
+2. **`miniProgramPayInfo`**：小程序支付信息对象，在小程序或原生 APP 内直接调起微信小程序原生收银台完成支付。
+
+* **二选一互斥输出**：系统仅返回与当前环境对应的一个字段，响应中彻底隐藏并不包含另一个字段；
+* **非待支付状态统一返回 null**：若订单在查单或超时后处于非待支付状态（已支付、已取消、超时失效），当前返回的支付字段保留在响应中并统一赋值为 `null`。
+
+### Input 参数（全部字段 📋）
+
+| 参数                                  | 类型    | 必填          | 默认值 | 说明                                                                                               |
+| :------------------------------------ | :------ | :------------ | :----- | :------------------------------------------------------------------------------------------------- |
+| `referenceNo`                       | string  | ✅            | —     | 由 priceConfirm 阶段确认返回依然有效的参考单号                                                     |
+| `contact`                           | object  | ✅            | —     | 订单主要的下单联系人数据快照域                                                                     |
+| `contact.firstName`                 | string  | ✅            | —     | 酒店识别用的联系人中文名转码拼音，或者英文名                                                       |
+| `contact.lastName`                  | string  | ✅            | —     | 酒店识别用的联系人中文姓转码拼音，或者英文姓                                                       |
+| `contact.email`                     | string  | ⚠️          | —     | 接收确认邮件的主邮箱。**国内版必填**；**国际版可选**（国际版仅需 firstName, lastName） |
+| `contact.phone`                     | string  | ✅            | —     | 下单联系人电话（如`13800138000`）                                                                |
+| `guestList`                         | array   | ✅            | —     | 每个房分配的入住旅客主体配置，长度需与间数一致                                                     |
+| `guestList[].roomNum`               | integer | ✅            | —     | 分配第几间客房序号，由数字`1` 启算递增 [format: int32]                                           |
+| `guestList[].guestInfo`             | array   | ✅            | —     | 入住该房间的成员名录，每房至少应有 1 位成年旅客                                                    |
+| `guestList[].guestInfo[].firstName` | string  | ✅            | —     | 旅客的名拼音或官方英文名拼写                                                                       |
+| `guestList[].guestInfo[].lastName`  | string  | ✅            | —     | 旅客的姓拼音或官方英文姓拼写                                                                       |
+| `guestList[].guestInfo[].isAdult`   | boolean | ✅            | —     | 人员类别，`true` 为成年人，`false` 为学龄儿童                                                  |
+| `guestList[].guestInfo[].age`       | integer | ⚠️ 儿童必填 | —     | 儿童旅客拟住年纪，如果 isAdult 填 false 时此参数不得漏传 [format: int32]                           |
+| `customerRequest`                   | string  | ❌            | —     | 可提交的备注式选房要求文案（如无烟、大高层等）                                                     |
+
+### Output 输出（全部字段 📋）
+
+| 字段 | 类型 | 能否为空 | 说明 |
+| :---| :---| :---| :---|
+| `success` | boolean | ❌ 否 | 订单是否创建成功 |
+| `code` | integer | ❌ 否 | 业务状态码（`2000` 表示成功） |
+| `bookingResult` | object/null | ✅ 是 | 创建成功后的实单结果包装 |
+| `bookingResult.orderNo` | string | ❌ 否 | RollingGo 系统建档的主体订单号（如`"H178..."`） |
+| `bookingResult.paymentType` | string | ❌ 否 | 单据支付动作唤起类别（固定返回`"PAYMENT_PAGE"`） |
+| `bookingResult.paymentUrl` | string | ⚠️ 条件 | **Web 支付链接**（Web/浏览器环境返回；小程序环境不返回） |
+| `bookingResult.miniProgramPayInfo` | object | ⚠️ 条件 | **小程序支付信息对象**（小程序/APP 环境返回；Web 环境不返回） |
+| `bookingResult.miniProgramPayInfo.type` | string | ❌ 否 | 支付交互类型说明 |
+| `bookingResult.miniProgramPayInfo.url` | string | ⚠️ 条件 | 微信跳转链接 / Scheme（针对外部网页或 APP 唤起小程序） |
+| `bookingResult.miniProgramPayInfo.appId` | string | ⚠️ 条件 | 目标微信小程序 AppID（针对小程序间直跳） |
+| `bookingResult.miniProgramPayInfo.path` | string | ⚠️ 条件 | 页面路径（如 `"pages/order/token-pay/index"`） |
+| `bookingResult.miniProgramPayInfo.query` | string | ⚠️ 条件 | 页面参数串（如 `"token=B8ZUZoPx"`） |
+| `bookingResult.paymentUrlNote` | string | ❌ 否 | 支付动作环境与调用引导文案 |
+| `bookingResult.amount` | number | ❌ 否 | 应付总金额 |
+| `bookingResult.currency` | string | ❌ 否 | 结算币种 |
+
+#### 响应报文示例
+
+##### 示例 1：Web 链接支付（返回 `paymentUrl`）
+```json
+{
+  "success": true,
+  "code": 2000,
+  "bookingResult": {
+    "orderNo": "H179058199622762501",
+    "amount": 171.00,
+    "currency": "CNY",
+    "paymentType": "PAYMENT_PAGE",
+    "paymentUrl": "https://rollinggo.cn/pages/order/token-pay/index?token=B8ZUZoPx",
+    "paymentUrlNote": "Open this payment page. The page will resolve the token and choose payment method."
+  }
+}
+```
+
+##### 示例 2：小程序支付（返回 `miniProgramPayInfo`）
+```json
+{
+  "success": true,
+  "code": 2000,
+  "bookingResult": {
+    "orderNo": "H179058199622762501",
+    "amount": 171.00,
+    "currency": "CNY",
+    "paymentType": "PAYMENT_PAGE",
+    "miniProgramPayInfo": {
+      "type": "MINIAPP_TO_MINIAPP",
+      "appId": "wx1234567890abcdef",
+      "path": "pages/order/token-pay/index",
+      "query": "token=B8ZUZoPx"
+    },
+    "paymentUrlNote": "Invoke wx.navigateToMiniProgram with miniProgramPayInfo parameters."
+  }
+}
+```
 
 ---
 
-### 9. `confirmCancelHotelBooking`（两阶段确认取消执行 · 闭环专属）
-* **定位**：退订第二阶段，携带凭证执行最终不可逆退订。
-* **核心入参**：
-  * `orderNo` (String, 必填)。
-  * `bookingId` (String, 必填)。
-  * `confirmId` (String, 必填)：预取消阶段获取的凭证号。
-  * `description` (String, 选填)：取消原因。
-* **核心出参**：`success: true`，退订成功确认及退款提示。
+## 6. searchHotelOrders — 查询订单列表
+
+### 功能说明
+
+拉取当前账户绑定的酒店订单列表概要，通过轻量级结构防止大模型处理多订单时遭遇信息爆炸和 Context 膨胀。
+
+### Input 参数
+
+| 参数                    | 类型   | 必填 | 默认值    | 说明                                                                                                                                                                                                                     |
+| :---------------------- | :----- | :--- | :-------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`              | string | ❌   | `"ALL"` | 订单状态筛选，极简生命周期可选值：<br>• `ALL`（全部）<br>• `PENDING`（进行中/待出行，映射底层状态：`PreBook`, `Booked`, `Pending`, `OnRequest`, `Confirmed`）<br>• `FINISHED`（已结束，映射底层状态：`Canceled`, `Failed`, `Finished`） |
+| `dateRange`           | object | ❌   | —        | 下单时间区间筛选                                                                                                                                                                                                         |
+| `dateRange.startDate` | string | ❌   | —        | 开始日期，格式`YYYY-MM-DD`                                                                                                                                                                                             |
+| `dateRange.endDate`   | string | ❌   | —        | 结束日期，格式`YYYY-MM-DD`                                                                                                                                                                                             |
+
+### Output 输出
+
+#### 顶级字段形式
+| 字段 | 类型 | 能否为空 | 说明 |
+| :---| :---| :---| :---|
+| `success` | boolean | ❌ 否 | 业务拉单指令是否执行成功 |
+| `code` | integer | ❌ 否 | 业务状态码（`2000` 表示成功） |
+| `message` | string | ❌ 否 | 业务查询状态反馈日志 |
+| `orderList` | array | ❌ 否 | 历史订单概要列表（按生单时间倒序呈现） |
+
+#### orderList[] 订单概要信息对象
+*(精简版，仅保留列表页渲染与大模型粗筛核心字段)*
+
+| 字段 | 类型 | 说明 |
+| :---| :---| :---|
+| `orderNo` | string | 统一识别订单号 |
+| `hotelName` | string | 酒店全称 |
+| `roomName` | string | 预订房型的中文/英文名称 |
+| `numOfRooms` | integer | 预订房间数量 |
+| `checkInDate` | string | 入住日期，格式 `YYYY-MM-DD` |
+| `checkOutDate` | string | 退房日期，格式 `YYYY-MM-DD` |
+| `mealDesc` | string | 餐饮包含情况描述（如 `"双早"`, `"无早"`） |
+| `cancelPolicyDesc` | string | 退改政策的简明一句话总结（如 `"7月10日前免费取消"` 或 `"不可取消"`） |
+| `orderStatus` | string | 直观状态描述（如 `"已确认"`、`"待支付"` 等） |
+| `totalPrice` | number | 订单实付/待付总价 |
+| `currency` | string | 结算币种 |
+| `orderDate` | string | 订单创建时间 (格式 `YYYY-MM-DD HH:mm:ss`) |
+| `orderDetailUrl` | string | 订单详情前端 H5 页面路由 URL（供大模型以链接卡片形式引导用户点击，页面内含支付/退改按钮） |
+| `paymentUrl` | string/null | Web 支付链接（Web 环境返回。待支付返回有效链接；已支付或已取消/超时失效返回 `null`；小程序环境不返回） |
+| `miniProgramPayInfo` | object/null | 小程序支付信息对象（小程序/APP 环境返回。待支付返回参数对象；已支付或已取消/超时失效返回 `null`；Web 环境不返回） |
+
+---
+
+## 7. getHotelOrderDetail — 查询订单详情
+
+### 功能说明
+
+根据订单号获取单笔订单的完整结构化详情。专门用于满足“前台入住”、“地图导航”、“退改售后”等场景。
+
+### Input 参数
+
+| 参数        | 类型   | 必填 | 说明                          |
+| :---------- | :----- | :--- | :---------------------------- |
+| `orderNo` | string | ✅   | 主体订单号（如`"H178..."`） |
+
+### Output 输出
+
+#### 顶级字段形式
+| 字段 | 类型 | 能否为空 | 说明 |
+| :------------------------- | :------ | :------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `success` | boolean | ❌ 否 | 详情查询指令是否执行成功 |
+| `code` | integer | ❌ 否 | 业务状态码（`2000` 表示成功） |
+| `message` | string | ❌ 否 | 业务查询反馈消息 |
+| `orderDetail` | object | ✅ 是 | 订单详细信息包，查询成功时非空 |
+
+#### orderDetail 详情结构体
+
+| 字段 | 类型 | 说明 |
+| :---| :---| :---|
+| `baseInfo` | object | **[模块]** 订单基础交易与凭证信息 |
+| `baseInfo.orderNo` | string | 统一识别订单号 |
+| `baseInfo.referenceNo` | string | 下单前对应的锁价流水号 |
+| `baseInfo.hotelConfirmationNo` | string/null | 酒店侧真实确认号（前台办理入住的查单唯一凭证） |
+| `baseInfo.orderStatus` | string | 直观状态描述（如 `"已确认"`, `"待支付"`, `"已取消"` 等） |
+| `baseInfo.orderDate` | string | 订单创建时间 (格式 `YYYY-MM-DD HH:mm:ss`) |
+| `baseInfo.orderDetailUrl` | string | 订单详情前端 H5 页面路由 URL（网页内包含支付、取消/退款等操作按钮），方便用户在独立网页中操作或分享 |
+| `hotelInfo` | object | **[模块]** 酒店实体与位置信息 |
+| `hotelInfo.hotelName` | string | 酒店全称 |
+| `hotelInfo.hotelImageUrl` | string | 酒店主图/封面图 CDN 地址，供大模型渲染图文丰富的订单详情卡片 |
+| `hotelInfo.hotelPhone` | string | 酒店联系电话（用户可一键拨打前台） |
+| `hotelInfo.platformSupportPhone` | string | 预订平台 (RollingGo) 客服热线，用于处理退款争议、订单异常等平台级售后 |
+| `hotelInfo.hotelAddress` | string | 酒店物理地址 |
+| `hotelInfo.latitude` | double | 酒店纬度（用于 Agent 调起地图导航） |
+| `hotelInfo.longitude` | double | 酒店经度（用于 Agent 调起地图导航） |
+| `stayInfo` | object | **[模块]** 行程安排与住客信息 |
+| `stayInfo.roomName` | string | 预订房型的中文/英文名称 |
+| `stayInfo.bedTypeStr` | string/null | 床型直观语义描述（如 `"1张特大床 (1.8m)"`） |
+| `stayInfo.checkInDate` | string | 入住日期，格式 `YYYY-MM-DD` |
+| `stayInfo.checkOutDate` | string | 退房日期，格式 `YYYY-MM-DD` |
+| `stayInfo.checkInTime` | string | 最早办理入住时间（如 `"14:00"`） |
+| `stayInfo.checkOutTime` | string | 最晚退房时间（如 `"12:00"`） |
+| `stayInfo.numOfRooms` | integer | 预订房间数量 |
+| `stayInfo.nights` | integer | 入住总晚数 |
+| `stayInfo.mealDesc` | string | 餐饮包含情况描述（如 `"双早"`, `"无早"`） |
+| `stayInfo.contact` | object | 下单主要联系人数据信息包 |
+| `stayInfo.contact.name` | string | 下单联系人姓名 |
+| `stayInfo.contact.phone` | string | 下单联系人电话（接收确认短信及紧急联络使用） |
+| `stayInfo.contact.email` | string | 下单联系人邮箱（接收确认信及行程单） |
+| `stayInfo.guestNames` | string[] | 实际入住人姓名列表（拼音或官方英文名，用于前台核验身份） |
+| `priceInfo` | object | **[模块]** 价格与限时支付链路 |
+| `priceInfo.totalPrice` | number | 订单总金额 |
+| `priceInfo.currency` | string | 结算币种 |
+| `priceInfo.paymentUrl` | string/null | Web 支付链接（Web 环境返回。待支付返回有效链接；已支付或超时失效返回 `null`；小程序环境不返回） |
+| `priceInfo.miniProgramPayInfo` | object/null | 小程序支付信息对象（小程序/APP 环境返回。待支付返回参数对象；已支付或超时失效返回 `null`；Web 环境不返回） |
+| `priceInfo.paymentDeadline` | string/null | 限时支付截止时间戳 (格式 `YYYY-MM-DD HH:mm:ss`)，用于 Agent 待支付倒计时提醒 |
+| `policyInfo` | object | **[模块]** 退改售后政策 |
+| `policyInfo.isCancelable` | boolean | 当前时间点是否还允许执行无责任免费取消操作 |
+| `policyInfo.freeCancelDeadline` | string/null | 免费取消的精确截止时间戳 (格式 `YYYY-MM-DD HH:mm:ss`，带时区信息优先)，供大模型进行时效预警比对 |
+| `policyInfo.cancelPolicyDesc` | string | 退改政策的简明一句话总结（如 `"7月10日前免费取消"` 或 `"不可取消"`） |
+
+---
+
+## 8. preCancelHotelBooking — 预取消订单与罚金试算
+
+### 功能说明
+
+预取消酒店订单，查询取消罚金并获取 **10 分钟有效** 的凭证 `confirmId`。实际取消前必须先调用本工具，再调用 `confirmCancelHotelBooking` 完成最终取消。
+
+* **操作特性**：`readOnlyHint: true`, `destructiveHint: false`
+
+### Input 参数
+
+| 参数名      |  类型  | 必填 | 说明                                         |
+| :---------- | :----: | :--: | :------------------------------------------- |
+| `orderNo` | string |  ✅  | RollingGo 系统订单号（唯一标识一个酒店订单） |
+
+### Output 输出
+
+| 字段              |    类型    | 能否为空 | 说明                                                                                                                                                             |
+| :---------------- | :---------: | :------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `success`       |   boolean   |  ❌ 否  | 接口是否执行成功                                                                                                                                                 |
+| `code`          |   integer   |  ❌ 否  | 业务状态码（`2000` 表示成功）                                                                                                                                  |
+| `canCancel`     |   boolean   |  ❌ 否  | **核心判断依据**：是否允许在线取消。• `penaltyAmount == 0`（完全免费取消）时为 `true`；• `penaltyAmount > 0`（有罚金）或不可退房型时为 `false`。 |
+| `orderNo`       |   string   |  ❌ 否  | 当前操作的订单号                                                                                                                                                 |
+| `bookingId`     | string/null |  ✅ 是  | 底层供应商预订号（仅当`canCancel == true` 时返回，确认取消时回传）                                                                                             |
+| `confirmId`     | string/null |  ✅ 是  | **取消确认凭证**（仅当 `canCancel == true` 时返回，**有效期 10 分钟**；未支付订单返回 `"UNPAID"`）                                               |
+| `currency`      |   string   |  ❌ 否  | 罚金币种代码（如`CNY`, `USD`）                                                                                                                               |
+| `penaltyAmount` |   number   |  ❌ 否  | 取消罚金金额（`0` 表示免费取消）                                                                                                                               |
+| `message`       |   string   |  ❌ 否  | 中/英/日多语言提示文案（见下方矩阵）                                                                                                                             |
+
+#### `message` 字段中/英/日动态拼接矩阵
+
+| 场景                                                              | 语言代码 | `message` 模板内容                                                                                                                                                                                                                             |
+| :---------------------------------------------------------------- | :-------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **免费取消**(`penaltyAmount == 0` 或未支付订单)           | `zh-CN` | `“查询成功，当前时段可免费取消（罚金 0.00 ${currency}）。凭证有效期 10 分钟。”`*(未支付订单文案: “查询成功，该订单尚未支付，可免费取消。凭证有效期 10 分钟。”)*                                                                          |
+|                                                                   |  `en`  | `"Query successful. Free cancellation is currently available (Penalty: 0.00 ${currency}). Confirmation valid for 10 minutes."`                                                                                                                 |
+|                                                                   |  `ja`  | `"照会に成功しました。現在無料キャンセルが可能です（キャンセル料：0.00 ${currency}）。確認コードの有効期限は10分間です。"`                                                                                                                     |
+| **产生罚金 / 不可取消**(`penaltyAmount > 0` 或不可退房型) | `zh-CN` | `“该订单取消将产生罚金（${penaltyAmount} ${currency}），按规则无法在线取消，如需取消请联系客服处理（客服电话：0755-36847480 / +852 30023293，客服邮箱：cs.hotel@rollinggo.cn）。”`                                                           |
+|                                                                   |  `en`  | `"Cancelling this booking will incur a penalty of ${penaltyAmount} ${currency}. Online cancellation is not supported per policy. Please contact customer service (Phone: 0755-36847480 / +852 30023293, Email: cs.hotel@rollinggo.cn)."`       |
+|                                                                   |  `ja`  | `"この予約をキャンセルすると、キャンセル料（${penaltyAmount} ${currency}）が発生するため、オンラインでのキャンセルはできません。カスタマーサポートまでご連絡ください（電話：0755-36847480 / +852 30023293、メール：cs.hotel@rollinggo.cn）。"` |
+
+> **客服联系方式规范**：客服电话为 `0755-36847480 / +852 30023293`；客服邮箱按业务线隔离配置：酒店业务线统一为 **`cs.hotel@rollinggo.cn`**（机票业务线对应为 `cs.flight@rollinggo.cn`）。
+
+#### 输出示例 ①：可在线免费取消（以中文为例）
+
+```json
+{
+  "success": true,
+  "code": 2000,
+  "canCancel": true,
+  "orderNo": "H178969795522549201",
+  "bookingId": "H178969795522549201",
+  "confirmId": "UNPAID",
+  "penaltyAmount": 0,
+  "message": "查询成功，该订单尚未支付，可免费取消。凭证有效期 10 分钟。"
+}
+```
+
+#### 输出示例 ②：不可在线取消 / 有罚金（以英文为例）
+
+```json
+{
+  "success": false,
+  "canCancel": false,
+  "orderNo": "H178901055708172341",
+  "confirmId": null,
+  "currency": "USD",
+  "penaltyAmount": 120.0,
+  "message": "Cancelling this booking will incur a penalty of 120.00 USD. Online cancellation is not supported per policy. Please contact customer service (Phone: 0755-36847480 / +852 30023293, Email: cs.hotel@rollinggo.cn)."
+}
+```
+
+---
+
+## 9. confirmCancelHotelBooking — 确认并执行订单取消
+
+### 功能说明
+
+使用 `preCancelHotelBooking` 返回的 `confirmId` 和 `bookingId` 确认并执行酒店订单的最终取消。此操作不可逆，调用前必须获得用户的明确确认。
+
+* **操作特性**：`readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: true`
+
+### Input 参数
+
+| 参数名          |  类型  | 必填 | 说明                                                                          |
+| :-------------- | :----: | :--: | :---------------------------------------------------------------------------- |
+| `orderNo`     | string |  ✅  | `preCancelHotelBooking` 返回的订单号                                        |
+| `bookingId`   | string |  ✅  | `preCancelHotelBooking` 返回的预订号（`bookingId`）                       |
+| `confirmId`   | string |  ✅  | `preCancelHotelBooking` 返回的取消确认凭证（`confirmId`，有效期 10 分钟） |
+| `description` | string |  ❌  | 可选的取消原因或备注说明                                                      |
+
+### Output 输出
+
+| 字段        |  类型  | 能否为空 | 说明                            |
+| :---------- | :-----: | :------: | :------------------------------ |
+| `success` | boolean |  ❌ 否  | 订单是否取消成功                |
+| `code`    | integer |  ❌ 否  | 业务状态码（`2000` 表示成功） |
+| `message` | string |  ❌ 否  | 取消结果提示文案                |
+| `orderNo` | string |  ❌ 否  | 已成功取消的订单号              |
+
+#### `message` 字段中/英/日规则
+
+* **中文 (`zh-CN`)**：`“订单 ${orderNo} 已成功取消。”`
+* **英文 (`en`)**：`"Booking ${orderNo} has been successfully cancelled."`
+* **日文 (`ja`)**：`"予約 ${orderNo} のキャンセルが完了しました。"`
+
+#### 输出示例
+
+```json
+{
+  "success": true,
+  "code": 2000,
+  "message": "订单 H178969795522549201 已成功取消。",
+  "orderNo": "H178969795522549201"
+}
+```
+
+---
+
+## 10. 统一错误码与异常映射
+
+| 错误码 (`code`) | HTTP 状态 | 错误枚举                   | 场景说明                           | 客户端 / Agent 应对建议                          |
+| :---------------- | :-------: | :------------------------- | :--------------------------------- | :----------------------------------------------- |
+| `2000`          |    200    | `SUCCESS`                | 操作成功                           | 正常渲染成功状态与文案                           |
+| `6001`          |    403    | `BOOKING_FORBIDDEN`      | 订单不存在或不属于当前登录用户     | 提示用户核对订单号                               |
+| `6201`          |    400    | `PRICE_CONFIRM_FAILED`   | 房型验价失败/房间已售罄            | 引导用户重新搜索可用房型                         |
+| `6207`          |    400    | `CONFIRM_ID_EXPIRED`     | 取消确认凭证已过期（超过 10 分钟） | 引导重新调用`preCancelHotelBooking` 获取新凭证 |
+| `6301`          |    400    | `BOOKING_NON_CANCELABLE` | 订单按规则无法在线取消             | 展示 message 中的客服电话及邮箱，引导联系人工    |
+| `6302`          |    502    | `SUPPLIER_CANCEL_FAILED` | 上游供应商取消异常                 | 建议稍后重试或联系客服协助处理                   |
+
+---
+
+*文档维护：RollingGo 开放平台技术团队*
+*最新更新日期：2026-10-16*

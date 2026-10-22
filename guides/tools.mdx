@@ -1,12 +1,7 @@
 ---
 title: "Tool Matrix & Specifications"
 sidebarTitle: "Tool Matrix & Specs"
-description: "Comprehensive Tool matrix, schema contracts, and parameter specifications for all 9 RollingGo Hotel MCP tools."
 icon: "toolbox"
----
-
-RollingGo Hotel MCP service complies with standardized JSON-RPC 2.0 contracts, providing **9 core tools** across the entire lifecycle from hotel discovery to checkout, voucher inquiry, and refunds.
-
 ---
 
 ## Core Tool Matrix
@@ -25,98 +20,583 @@ RollingGo Hotel MCP service complies with standardized JSON-RPC 2.0 contracts, p
 
 ---
 
-## 9 Core Tools Schema Specifications
-
-### 1. `getHotelSearchTags` (Search Tags)
-* **Purpose**: Helps agents discover all supported feature tags (e.g. WiFi, swimming pool, family-friendly).
-* **Key Output**: Array of tag strings.
-
----
-
-### 2. `searchHotels` (Hotel Search)
-* **Purpose**: Discovers hotel candidates by destination, dates, star ratings, and budget.
-* **Key Inputs**:
-  * `place` (String, Required): Destination or landmark name.
-  * `placeType` (String, Required): Landmark type (China node uses Chinese enums; Global node uses English enums: `"City"`, `"Attraction"`, `"Commercial Area"`, `"Train Station"`, `"Airport"`).
-  * `checkInParam` (Object, Required): `checkInDate` (YYYY-MM-DD), `stayNights` (Int), `adultCount` (Int).
-  * `filterOptions` (Object, Optional): `starRatings` (Array, e.g. `[4.0, 5.0]`).
-  * `hotelTags` (Object, Optional): `maxPricePerNight`, `requiredTags`.
-  * `size` (Int, Optional): Number of hotels per page (default: 5, range: 1~10).
-  * `nextPageToken` (String, Optional): Token for subsequent pagination.
-  * `localeParam` (Object, Global Node): `language` and `currency` (supports 25 currencies with real-time conversion).
-* **Key Outputs**:
-  * `hotelList`: Candidate list with `hotelId`, `hotelName`, `starRating`, `priceInfo`, and `bookingUrl`.
-  * `nextPageToken`: Next page token (null when reaching end).
+> **Last Updated**: 2026-10-16  
+> **Environment**: Production (Active)  
+> **Tool Count**: 9 Tools  
+> **Service Endpoints**:  
+> • **API Key Mode**: China `https://mcp.rollinggo.cn/mcp` / Global `https://mcp.rollinggo.ai/mcp`  
+> • **OAuth 2.1 Mode**: China `https://mcp.rollinggo.cn/mcp/hotel` / Global `https://mcp.rollinggo.ai/mcp/hotel`  
+> 
+> 💡 **China (`cn`) vs Global (`ai`) Core Differences**:
+> 1. **Localization Package (`localeParam`)**: Only supported on **Global (`ai`)** endpoints (`localeParam: { currency, language }`, default `USD`, 25 currencies; default `en`, supports `en`/`zh`/`ja`). **China (`cn`)** endpoint is fixed to `zh-CN` and `CNY` (omit `localeParam`).
+> 2. **Place Type Enum (`placeType`)**: China endpoint uses Chinese enums (`城市`, `机场`, `景点`, `酒店`, etc.); Global endpoint uses English enums (`city`, `airport`, `point_of_interest`, `hotel`, etc.).
+> 3. **Deprecated Fields**: Both editions have fully removed `countryCode` and `nationality`.
+> 4. **Contact Email (`contact.email`)**: **Required** for China edition; **Optional** for Global edition (Global requires only `firstName` and `lastName`).
+> 5. **Rate Plan Filter (`filter`)**: Fully supported on both China and Global endpoints.
+> 6. **Order Cancellation Tools (`preCancelHotelBooking` / `confirmCancelHotelBooking`)**: Parameter structures and two-phase safety mechanisms are identical across both editions with native multilingual feedback.
 
 ---
 
-### 3. `getHotelDetail` (Room Rates & Amenities)
-* **Purpose**: Fetches hotel rooms, photos, amenities, and offers server-side filtering.
-* **Key Inputs**:
-  * `hotelId` (Int, Required): Hotel identifier.
-  * `dateParam` (Object, Required): `checkInDate` and `checkOutDate`.
-  * `occupancyParam` (Object, Required): `roomCount` and `adultCount`.
-  * `filter` (Object, Optional · Recommended):
-    * `mealType`: `"DOUBLE_BREAKFAST"`, `"SINGLE_BREAKFAST"`, `"NO_MEAL"`;
-    * `cancelable`: `"CANCELABLE"` (free cancellation).
-* **Key Output**: `roomRatePlans` with room descriptions, bed types, meals, and cancellation rules.
+## Table of Contents
+- [1. getHotelSearchTags — Fetch Search Tags](#1-gethotelsearchtags--fetch-search-tags)
+- [2. searchHotels — Search Hotels Worldwide](#2-searchhotels--search-hotels-worldwide)
+- [3. getHotelDetail — Get Hotel Details & Room Rate Plans](#3-gethoteldetail--get-hotel-details--room-rate-plans)
+- [4. hotelPriceConfirm — Real-Time Price Verification & Locking](#4-hotelpriceconfirm--real-time-price-verification--locking)
+- [5. createHotelBookingWithPaymentURL — Create Order with Payment URL](#5-createhotelbookingwithpaymenturl--create-order-with-payment-url)
+- [6. searchHotelOrders — Query Hotel Orders List](#6-searchhotelorders--query-hotel-orders-list)
+- [7. getHotelOrderDetail — Query Hotel Order Detail](#7-gethotelorderdetail--query-hotel-order-detail)
+- [8. preCancelHotelBooking — Pre-Cancel Booking & Penalty Quote](#8-precancelhotelbooking--pre-cancel-booking--penalty-quote)
+- [9. confirmCancelHotelBooking — Confirm & Execute Cancellation](#9-confirmcancelhotelbooking--confirm--execute-cancellation)
+- [10. Unified Error Codes & Exception Mapping](#10-unified-error-codes--exception-mapping)
 
 ---
 
-### 4. `hotelPriceConfirm` (Price & Room Lock · Closed-Loop Only)
-* **Purpose**: Guarantees price and room inventory for 30 minutes before booking creation.
-* **Key Inputs**: `hotelID`, `ratePlanID`, `numOfRooms`, `dateParam`, `occupancyDetails`.
-* **Key Outputs**:
-  * `referenceNo`: The unique lock quote reference (must be passed to booking creation);
-  * `finalTotalAmount`: Guaranteed final total price;
-  * `guestProfile`: Suggested frequent guest profile data.
+## 1. getHotelSearchTags — Fetch Search Tags
+
+### Description
+Retrieves all enabled hotel filter tags.
+
+### Input Parameters
+None.
+
+### Output
+
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether the API call succeeded |
+| `tags` | array | ❌ No | List of tag data |
+| `tags[].name` | string | ❌ No | Tag display name (e.g., "Free Wi-Fi", "Local Chain") |
+| `tags[].category` | string | ❌ No | Tag category (e.g., "Views & Room Types", "Core Amenities") |
+| `usageGuide` | object | ❌ No | Guidance for the LLM on using filter preferences |
+| `usageGuide.tagUsage` | string | ❌ No | Text guide on how tags are combined/bound in the request body |
+| `usageGuide.exampleRequest` | string | ❌ No | Complete request JSON example string with tag filters |
 
 ---
 
-### 5. `createHotelBookingWithPaymentURL` (Booking Creation & Cashier · Closed-Loop Only)
-* **Purpose**: Creates an official booking and delivers checkout payment vouchers.
-* **Key Inputs**:
-  * `referenceNo` (String, Required): Lock reference from `hotelPriceConfirm`.
-  * `contact` (Object, Required): Contact name, phone, email.
-  * `guestList` (Array, Required): List of guests staying in each room.
-* **Key Outputs**:
-  * `orderNo`: Official booking identifier.
-  * `paymentUrl`: Web cashier checkout URL (delivered for Web hosts).
-  * `miniProgramPayInfo`: Native cashier launch parameters (delivered for WeChat hosts).
+## 2. searchHotels — Search Hotels Worldwide
+
+### Description
+Performs an initial global hotel search within a specified area based on filter criteria, returning candidate hotels and estimated lowest retail prices with real-time currency conversion.
+
+### Input Parameters (Complete field list 📋)
+
+| Parameter | Type | Required | Default | Description |
+|:---|:---|:---|:---|:---|
+| `originQuery` | string | ✅ | — | Full accommodation intent text distilled from multi-turn conversation |
+| `place` | string | ✅ | — | Target search name (place name / airport / attraction / station / specific hotel name, etc.) |
+| `placeType` | string | ✅ | — | Place type. **China edition** uses Chinese enums (`城市`, `机场`, `景点`, `火车站`, `地铁站`, `酒店`, `区/县`, `详细地址`); **Global edition** uses English enums (`city`, `airport`, `point_of_interest`, `train_station`, `subway_station`, `hotel`, `district/county`, `detailed address`) |
+| `checkInParam` | object | ❌ | — | Check-in and length-of-stay information bundle |
+| `checkInParam.checkInDate` | string | ❌ | Tomorrow | Check-in date, format `YYYY-MM-DD` |
+| `checkInParam.stayNights` | integer | ❌ | `1` | Number of nights (range `1`–`28`) [format: int32] |
+| `checkInParam.adultCount` | integer | ❌ | `2` | Number of adults per room [format: int32] |
+| `localeParam` | object | ❌ | — | **[Global Edition Only]** Localization package (China edition is fixed to `zh-CN` + `CNY`, omit this parameter) |
+| `localeParam.language` | string | ❌ | `en` (Global) / `zh-CN` | Language code (e.g., `en`, `zh`, `ja`) |
+| `localeParam.currency` | string | ❌ | `USD` (Global) / `CNY` | Settlement currency code (e.g., `USD`, `EUR`, `JPY`, `HKD`, etc. 25 currencies) |
+| `filterOptions` | object | ❌ | — | Geographic parsing and star-rating filter layer |
+| `filterOptions.distanceInMeter` | integer | ❌ | `2000` | Straight-line distance limit (meters); effective when placeType is "Attraction" or "Airport" [format: int32] |
+| `filterOptions.starRatings` | float[] | ❌ | `[0.0, 5.0]` | Star rating range array, values 0.0–5.0 (step 0.5) |
+| `hotelTags` | object | ❌ | — | Advanced tag, brand, and budget restriction filter bundle |
+| `hotelTags.requiredTags` | string[] | ❌ | — | List of hard-requirement tags that must be matched |
+| `hotelTags.preferredBrands` | string[] | ❌ | — | Preferred chain brand names |
+| `hotelTags.maxPricePerNight` | float | ❌ | — | Per-room-per-night budget cap in specified settlement currency |
+| `size` | integer | ❌ | `5` | Maximum number of hotels to return (max `20`) [format: int32] |
+
+### Output
+
+#### Top-Level Fields
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether the search succeeded |
+| `message` | string | ❌ No | Business-layer processing feedback message |
+| `hotelInformationList` | array | ❌ No | List of hotel objects matching the filter criteria |
+
+#### hotelInformationList[] Hotel Data Structure
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `hotelId` | integer | ❌ No | Unique hotel ID (preferred parameter for getHotelDetail pricing) |
+| `bookingUrl` | string | ✅ Yes | Front-end static route URL of the hotel detail & booking H5 page; mutually exclusive with `miniProgramInfo` |
+| `miniProgramInfo` | object | ✅ Yes | Structured WeChat Mini Program landing object, output in streamlined form per channel configuration (mutually exclusive with `bookingUrl`) |
+| `name` | string | ❌ No | Hotel name (localized per localeParam.language) |
+| `nameEn` | string | ❌ No | Official English long name of the hotel |
+| `brand` | string/null | ✅ Yes | Brand name (returned only for branded hotels) |
+| `address` | string | ❌ No | Detailed physical address |
+| `destinationId` | string | ❌ No | Secondary destination identifier |
+| `distanceInMeters` | integer/null | ✅ Yes | Straight-line distance from search center point (returned only when searching POI with distance match) |
+| `latitude` | double | ❌ No | Latitude in WGS-84 coordinates |
+| `longitude` | double | ❌ No | Longitude in WGS-84 coordinates |
+| `starRating` | number | ❌ No | Star rating (1–5) |
+| `price` | object | ❌ No | Lowest first-night price information bundle |
+| `price.hasPrice` | boolean | ❌ No | Whether a quote is available for the dates |
+| `price.currency` | string | ❌ No | Settlement currency code (e.g., `CNY`, `JPY`, `USD`) |
+| `price.lowestPrice` | number | ❌ No | Lowest reference discounted room-night price (converted to settlement currency) |
+| `price.message` | string | ❌ No | Price note text |
+| `areaCode` | string | ❌ No | ISO 2-letter country code (e.g., `CN`, `JP`, `US`) |
+| `description` | string | ❌ No | Hotel rich text description (may include HTML tags) |
+| `imageUrl` | string | ❌ No | Hotel cover/main image CDN URL |
+| `hotelAmenities` | string[] | ❌ No | List of hotel amenities and services |
+| `tags` | string[] | ❌ No | Distilled tags matching user search context |
 
 ---
 
-### 6. `searchHotelOrders` (Order Summary List · Closed-Loop Only)
-* **Purpose**: Lists user hotel reservations in a lightweight summary schema.
-* **Key Inputs**: `status` (Optional, e.g. `"WAITING_PAYMENT"`, `"CONFIRMED"`), `page`, `size`.
-* **Key Output**: Order summary list including order number, hotel name, dates, amount, and status.
+## 3. getHotelDetail — Get Hotel Details & Room Rate Plans
+
+### Description
+Queries all sellable room types for a specific hotel, average per-night rates, and cancellation/modification rules. Supports server-side structured room filtering by meal and cancellation terms.
+
+### Input Parameters (Complete field list 📋)
+*`hotelId` and `name` are mutually exclusive; `hotelId` is preferred for high-precision matching.*
+
+| Parameter | Type | Required | Default | Description |
+|:---|:---|:---|:---|:---|
+| `hotelId` | integer | ⚠️ One of | — | Unique hotel ID [format: int32] |
+| `name` | string | ⚠️ One of | — | Hotel name (fuzzy search, used when no ID is available) |
+| `dateParam` | object | ❌ | — | Check-in/check-out date bundle |
+| `dateParam.checkInDate` | string | ❌ | — | Check-in date, format `YYYY-MM-DD` |
+| `dateParam.checkOutDate` | string | ❌ | — | Check-out date, format `YYYY-MM-DD` (must be later than checkInDate) |
+| `occupancyParam` | object | ❌ | — | Room count and occupancy constraints |
+| `occupancyParam.roomCount` | integer | ❌ | `1` | Number of rooms to book, default 1 [format: int32] |
+| `occupancyParam.adultCount` | integer | ❌ | `2` | Adults per room, default 2 [format: int32] |
+| `occupancyParam.childCount` | integer | ❌ | `0` | Children per room, default 0 [format: int32] |
+| `occupancyParam.childAgeDetails` | integer[] | ❌ | — | Array of children's ages (length must strictly match childCount) |
+| `localeParam` | object | ❌ | — | **[Global Edition Only]** Language and currency preferences (China edition is fixed to `CNY`, omit this parameter) |
+| `localeParam.language` | string | ❌ | `en` (Global) / `zh-CN` | Language code (e.g., `en`, `zh`, `ja`) |
+| `localeParam.currency` | string | ❌ | `USD` (Global) / `CNY` | Settlement currency code (e.g., `USD`, `EUR`, `JPY`, `HKD`, etc. 25 currencies) |
+| `filter` | object | ❌ | — | **Room rate plan filtering bundle (returns all plans if omitted; supported on both China & Global)** |
+| `filter.mealType` | string | ❌ | — | Meal plan filter, e.g., `"BREAKFAST_INCLUDED"`, `"DOUBLE_BREAKFAST"`, `"NO_MEAL"` (supports EN/ZH/JA, see matrix below) |
+| `filter.cancelable` | string | ❌ | — | Cancellation policy filter, e.g., `"CANCELABLE"`, `"NON_CANCELABLE"` (supports EN/ZH/JA, see matrix below) |
+
+#### Multilingual Filter Compatibility Matrix
+| Filter Dimension | Matching Logic | Standard Enum (Recommended) | Chinese Aliases | Japanese Aliases |
+|:---|:---|:---|:---|:---|
+| **Meal Filter** (`mealType`) | `mealAmount > 0` (Breakfast included) | `"BREAKFAST_INCLUDED"` | `"含早餐"`, `"含早"` | `"朝食付き"`, `"朝食あり"` |
+| | `mealAmount == 1` (Single breakfast) | `"SINGLE_BREAKFAST"` | `"单份早餐"`, `"单早"` | `"1名朝食付き"` |
+| | `mealAmount == 2` (Double breakfast) | `"DOUBLE_BREAKFAST"` | `"双份早餐"`, `"双早"` | `"2名朝食付き"` |
+| | `mealAmount == 0` (No meal / Room only) | `"NO_MEAL"` / `"ROOM_ONLY"` | `"不含餐食"`, `"无早"` | `"食事なし"`, `"素泊まり"` |
+| **Cancellation Filter** (`cancelable`) | Free cancellation only | `"CANCELABLE"` | `"可免费取消"`, `"免费取消"` | `"無料キャンセル"`, `"キャンセル可能"` |
+| | Non-refundable only | `"NON_CANCELABLE"` | `"不可取消"`, `"不可免费取消"` | `"キャンセル不可"` |
+
+### Output
+
+#### Top-Level Fields
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether the query succeeded at the business layer |
+| `hotelId` | integer | ❌ No | Hotel ID |
+| `name` | string | ❌ No | Hotel name |
+| `nameEn` | string | ❌ No | Official English long name of the hotel |
+| `checkIn` | string | ❌ No | Confirmed check-in date `YYYY-MM-DD` |
+| `checkOut` | string | ❌ No | Confirmed check-out date `YYYY-MM-DD` |
+| `bookingUrl` | string | ✅ Yes | Front-end static route URL of the hotel detail booking H5 page; mutually exclusive with `miniProgramInfo` |
+| `miniProgramInfo` | object | ✅ Yes | Structured WeChat Mini Program landing object, output in streamlined form per channel configuration (mutually exclusive with `bookingUrl`) |
+| `roomRatePlans` | array | ❌ No | List of real-time sellable rate plan bundles at room-type level (filtered per criteria) |
+| `message` | string | ❌ No | Status or feedback message |
+
+#### miniProgramInfo Structure & Channel Forms Matrix
+| Form ID (`type`) | Applicable Scene | Technical Vehicle | Prerequisites | `miniProgramInfo` Output Fields |
+|:---|:---|:---|:---|:---|
+| `H5` (Default) | Web Browser / H5 | Plain URL string | None | *Does not return miniProgramInfo, returns top-level `bookingUrl` (string)* |
+| `H5_TO_MINIAPP` | H5 jumping to Mini Program | Encrypted URL Link (`https://wxmpurl.cn/*`) | Mini Program published | `type`: `"H5_TO_MINIAPP"`, `url`: Encrypted URL Link |
+| `APP_TO_MINIAPP` | Native App jumping to Mini Program | Plain Scheme (`weixin://dl/business/?...`) | Scheme enabled in WeChat Console | `type`: `"APP_TO_MINIAPP"`, `url`: Plain Scheme |
+| `MINIAPP_TO_MINIAPP` | In-Mini Program navigation | Structured params (`appId` + `path` + `query`) | Handled by host Mini Program | `type`: `"MINIAPP_TO_MINIAPP"`, `appId`: Mini Program AppID, `path`: Pure path, `query`: Dynamic query string |
+
+#### roomRatePlans[] Rate Plan Sub-object
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `roomName` | string | ❌ No | Standard English room type name |
+| `roomNameCn` | string | ❌ No | Standard Chinese room type description (e.g., `"高级大床房"`) |
+| `ratePlanId` | string | ❌ No | Unique quote plan ID for the plan's time period (**ratePlanID input for price confirmation**) |
+| `ratePlanName` | string | ❌ No | Rate plan name (including bed width, occupancy details) |
+| `averagePrice` | number | ❌ No | Average discounted all-inclusive (tax-included) price per night for the period in settlement currency |
+| `bedTypeDescription` | string | ❌ No | Physical bed type description (e.g., `"1 King Bed"`, `"2 Twin Beds"`) |
+| `currency` | string | ❌ No | Settlement currency code (e.g., `CNY`, `JPY`, `USD`) |
+| `mealAmount` | integer | ❌ No | Number of included breakfasts with this plan (e.g., `0` = no meals; `2` = double breakfast) |
+| `mealTypeStr` | string | ❌ No | Meal type description text |
+| `isOnRequest` | boolean | ❌ No | Whether deferred manual approval is required (`false` = instant confirmation) |
+| `cancelPolicy` | string | ❌ No | Simplified cancellation/modification rule text |
+| `roomInfo` | object | ❌ No | Room static facility info bundle |
+| `roomInfo.hasWifi` | boolean | ❌ No | Whether the room has Wi-Fi |
+| `roomInfo.hasWindow` | boolean | ❌ No | Whether the room has a window |
+| `roomInfo.maxOccupancy` | integer | ❌ No | Maximum room occupancy |
+| `roomInfo.size` | string | ❌ No | Room area (text in square meters, e.g., `"36"`) |
+| `roomInfo.smoking` | string | ❌ No | Smoking policy description |
+| `roomInfo.images` | string/null | ✅ Yes | Room type cover image URL, returns `null` when no valid image is available |
 
 ---
 
-### 7. `getHotelOrderDetail` (Full Order Voucher Details · Closed-Loop Only)
-* **Purpose**: Retrieves complete reservation and voucher details.
-* **Key Input**: `orderNo` (String, Required).
-* **Key Outputs**:
-  * `hotelConfirmationNo`: Check-in voucher number.
-  * `hotelInfo`: Address, GPS coordinates (`latitude`, `longitude`), phone.
-  * `stayInfo`: Dates, room type, meals, guest names.
-  * `priceInfo`: Price and payment state (`paymentUrl` is set to null when paid).
-  * `policyInfo`: Free cancellation deadline and cancellation terms.
+## 4. hotelPriceConfirm — Real-Time Price Verification & Locking
+
+### Description
+Locks in the final real-time price and room status for the selected room type, generating the booking reference tracking number `referenceNo`. Lock validity is 30 minutes. Also returns intelligent guest profile bundle (`guestProfile`) for seamless form prefilling.
+
+### Input Parameters (Complete field list 📋)
+*Both `dateParam` and `occupancyDetails` are required.*
+
+| Parameter | Type | Required | Default | Description |
+|:---|:---|:---|:---|:---|
+| `hotelID` | integer | ✅ | — | Unique hotel ID [format: int32] |
+| `ratePlanID` | string | ✅ | — | ratePlanId returned from getHotelDetail roomRatePlans |
+| `numOfRooms` | integer | ✅ | `1` | Number of rooms to lock [format: int32] |
+| `localeParam` | object | ❌ | — | **[Global Edition Only]** Language and currency preferences (`currency`, `language`) |
+| `dateParam` | object | ✅ | — | Date control object |
+| `dateParam.checkInDate` | string | ✅ | — | Check-in date, format `YYYY-MM-DD` |
+| `dateParam.checkOutDate` | string | ✅ | — | Check-out date, format `YYYY-MM-DD` |
+| `occupancyDetails` | array | ✅ | — | Occupancy breakdown per room; array length must equal `numOfRooms` |
+| `occupancyDetails[].roomNum` | integer | ✅ | `1` | Room sequence number starting from 1 [format: int32] |
+| `occupancyDetails[].adultCount` | integer | ✅ | `2` | Number of adults for this room [format: int32] |
+| `occupancyDetails[].childCount` | integer | ❌ | `0` | Number of children for this room [format: int32] |
+| `occupancyDetails[].childAgeDetails` | integer[] | ❌ | — | Array of children's ages |
+
+### Output (Complete field list 📋)
+
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether price locking succeeded |
+| `code` | integer | ❌ No | Business status code (`2000` = success) |
+| `message` | string | ❌ No | Lock confirmation message |
+| `referenceNo` | string | ❌ No | **Locked price reference tracking number (critical for booking creation)** |
+| `totalPrice` | number | ❌ No | Verified total all-inclusive price |
+| `currency` | string | ❌ No | Settlement currency |
+| `priceDetailsInfo` | object | ❌ No | Detailed price lock object |
+| `priceDetailsInfo.referenceNo` | string | ❌ No | Reference number matching top-level referenceNo |
+| `priceDetailsInfo.checkInDate` | string | ❌ No | Confirmed check-in date |
+| `priceDetailsInfo.checkOutDate` | string | ❌ No | Confirmed check-out date |
+| `priceDetailsInfo.totalPrice` | number | ❌ No | Confirmed total price |
+| `priceDetailsInfo.currency` | string | ❌ No | Settlement currency (e.g., `CNY`, `USD`) |
+| `priceDetailsInfo.lockExpirationMinutes` | integer | ❌ No | Lock validity period (fixed at `30` minutes) |
+| `guestProfile` | object | ❌ No | Intelligent frequent guest profile prefill bundle |
+| `guestProfile.guestNameList` | string[] | ❌ No | Pre-filled guest names (Pinyin or English) |
+| `guestProfile.contactPhone` | string | ❌ No | Contact phone number |
+| `guestProfile.contactEmail` | string | ❌ No | Contact email address |
 
 ---
 
-### 8. `preCancelHotelBooking` (Two-Phase Cancellation Quote · Closed-Loop Only)
-* **Purpose**: Evaluates cancellation penalty and issues a 10-minute confirmation voucher.
-* **Key Input**: `orderNo` (String, Required).
-* **Key Outputs**:
-  * `canCancel` (Boolean): Eligibility for online cancellation.
-  * `penaltyAmount` (Float): Calculated penalty (0.00 indicates full refund).
-  * `bookingId` (String): Internal booking reference.
-  * `confirmId` (String): **10-minute valid cancellation voucher**.
+## 5. createHotelBookingWithPaymentURL — Create Order with Payment URL
+
+### Description
+Submits guest and contact details to generate an active booking order and retrieve cashier payment information.
+
+Based on the client host environment (Web / Browser vs. WeChat / Mini Program), the system returns one of two mutually exclusive payment fields:
+1. **`paymentUrl`**: Web payment URL, directly opened in browser to complete checkout;
+2. **`miniProgramPayInfo`**: Mini Program payment object, directly launching the native WeChat Mini Program cashier in Mini Program or native APP environments.
+
+* **Strict Mutual Exclusivity**: Only the field matching the current client environment is returned; the other is completely omitted from the response;
+* **Non-Pending State Returns null**: If an order is paid, cancelled, or expired, the configured payment field is retained and set to `null`.
+
+### Input Parameters (Complete field list 📋)
+
+| Parameter | Type | Required | Default | Description |
+|:---|:---|:---|:---|:---|
+| `referenceNo` | string | ✅ | — | Valid referenceNo obtained from price confirmation stage |
+| `contact` | object | ✅ | — | Primary order contact person details |
+| `contact.firstName` | string | ✅ | — | Contact first name (Pinyin or English) |
+| `contact.lastName` | string | ✅ | — | Contact last name (Pinyin or English) |
+| `contact.email` | string | ⚠️ | — | Email address for confirmation voucher and invoice. **Required for China edition**; **Optional for Global edition** (Global only requires firstName, lastName). |
+| `contact.phone` | string | ✅ | — | Contact phone number for SMS and emergency contact (e.g., `"13800138000"`) |
+| `guestList` | array | ✅ | — | List of assigned guests per room; array length must equal room count |
+| `guestList[].roomNum` | integer | ✅ | — | Room sequence number starting from `1` [format: int32] |
+| `guestList[].guestInfo` | array | ✅ | — | List of guests staying in this room (at least 1 adult required) |
+| `guestList[].guestInfo[].firstName` | string | ✅ | — | Guest first name (Pinyin or English) |
+| `guestList[].guestInfo[].lastName` | string | ✅ | — | Guest last name (Pinyin or English) |
+| `guestList[].guestInfo[].isAdult` | boolean | ✅ | — | Whether guest is an adult (`true`) or child (`false`) |
+| `guestList[].guestInfo[].age` | integer | ⚠️ Child required | — | Age of child guest (mandatory if `isAdult` is `false`) [format: int32] |
+| `customerRequest` | string | ❌ | — | Special customer requests (e.g., non-smoking, high floor) |
+
+### Output (Complete field list 📋)
+
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether booking was successfully created |
+| `code` | integer | ❌ No | Business status code (`2000` = success) |
+| `bookingResult` | object/null | ✅ Yes | Booking confirmation result object (null on failure) |
+| `bookingResult.orderNo` | string | ❌ No | Unique order number created by RollingGo system (e.g., `"H178..."`) |
+| `bookingResult.paymentType` | string | ❌ No | Payment invocation type (fixed as `"PAYMENT_PAGE"`) |
+| `bookingResult.paymentUrl` | string | ⚠️ Conditional | **Web Payment URL** (returned for Web/browser environments; omitted for Mini Program environments) |
+| `bookingResult.miniProgramPayInfo` | object | ⚠️ Conditional | **Mini Program Payment Object** (returned for Mini Program/APP environments; omitted for Web environments) |
+| `bookingResult.miniProgramPayInfo.type` | string | ❌ No | Payment invocation category description |
+| `bookingResult.miniProgramPayInfo.url` | string | ⚠️ Conditional | WeChat launch link / scheme (for external web or APP invocation) |
+| `bookingResult.miniProgramPayInfo.appId` | string | ⚠️ Conditional | Target WeChat Mini Program AppID (for cross-program navigation) |
+| `bookingResult.miniProgramPayInfo.path` | string | ⚠️ Conditional | Target page path (`"pages/order/token-pay/index"`) |
+| `bookingResult.miniProgramPayInfo.query` | string | ⚠️ Conditional | Page query parameters string (`"token=B8ZUZoPx"`) |
+| `bookingResult.paymentUrlNote` | string | ❌ No | Payment environment guidance and invocation notes |
+| `bookingResult.amount` | number | ❌ No | Total order amount payable |
+| `bookingResult.currency` | string | ❌ No | Settlement currency |
+
+#### Response Examples
+
+##### Example 1: Web Link Payment (`paymentUrl` returned)
+```json
+{
+  "success": true,
+  "code": 2000,
+  "bookingResult": {
+    "orderNo": "H179058199622762501",
+    "amount": 171.00,
+    "currency": "CNY",
+    "paymentType": "PAYMENT_PAGE",
+    "paymentUrl": "https://rollinggo.cn/pages/order/token-pay/index?token=B8ZUZoPx",
+    "paymentUrlNote": "Open this payment page. The page will resolve the token and choose payment method."
+  }
+}
+```
+
+##### Example 2: Mini Program Payment (`miniProgramPayInfo` returned)
+```json
+{
+  "success": true,
+  "code": 2000,
+  "bookingResult": {
+    "orderNo": "H179058199622762501",
+    "amount": 171.00,
+    "currency": "CNY",
+    "paymentType": "PAYMENT_PAGE",
+    "miniProgramPayInfo": {
+      "type": "MINIAPP_TO_MINIAPP",
+      "appId": "wx1234567890abcdef",
+      "path": "pages/order/token-pay/index",
+      "query": "token=B8ZUZoPx"
+    },
+    "paymentUrlNote": "Invoke wx.navigateToMiniProgram with miniProgramPayInfo parameters."
+  }
+}
+```
 
 ---
 
-### 9. `confirmCancelHotelBooking` (Two-Phase Execution · Closed-Loop Only)
-* **Purpose**: Irreversibly cancels reservation using the `confirmId` and initiates refund.
-* **Key Inputs**: `orderNo`, `bookingId`, `confirmId`, `description` (Optional).
-* **Key Output**: `success: true` confirming cancellation and refund initiation.
+## 6. searchHotelOrders — Query Hotel Orders List
+
+### Description
+Fetches a lightweight summary list of hotel orders for the current user to prevent LLM context bloating.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+|:---|:---|:---|:---|:---|
+| `status` | string | ❌ | `"ALL"` | Order lifecycle status filter:<br>• `ALL` (All orders)<br>• `PENDING` (Active / Upcoming: `PreBook`, `Booked`, `Pending`, `OnRequest`, `Confirmed`)<br>• `FINISHED` (Ended: `Canceled`, `Failed`, `Finished`) |
+| `dateRange` | object | ❌ | — | Booking date range filter |
+| `dateRange.startDate` | string | ❌ | — | Start date (`YYYY-MM-DD`) |
+| `dateRange.endDate` | string | ❌ | — | End date (`YYYY-MM-DD`) |
+
+### Output
+
+#### Top-Level Fields
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether query succeeded |
+| `code` | integer | ❌ No | Business status code (`2000` = success) |
+| `message` | string | ❌ No | Processing feedback message |
+| `orderList` | array | ❌ No | List of order summaries (descending order by booking time) |
+
+#### orderList[] Order Summary Object
+*(Streamlined version, preserving core fields for list rendering and LLM coarse filtering)*
+
+| Field | Type | Description |
+|:---|:---|:---|
+| `orderNo` | string | Unified order identification number |
+| `hotelName` | string | Full hotel name |
+| `roomName` | string | Booked room name |
+| `numOfRooms` | integer | Number of booked rooms |
+| `checkInDate` | string | Check-in date (`YYYY-MM-DD`) |
+| `checkOutDate` | string | Check-out date (`YYYY-MM-DD`) |
+| `mealDesc` | string | Meal description (e.g., "Double Breakfast", "No Meals") |
+| `cancelPolicyDesc` | string | Concise summary of cancellation terms |
+| `orderStatus` | string | Order status description (e.g., `"Confirmed"`, `"Pending Payment"`, `"Canceled"`) |
+| `totalPrice` | number | Total order amount |
+| `currency` | string | Settlement currency |
+| `orderDate` | string | Creation timestamp (`YYYY-MM-DD HH:mm:ss`) |
+| `orderDetailUrl` | string | Front-end H5 URL to view/manage order in browser |
+| `paymentUrl` | string/null | Web payment URL (returned in Web environments; active if pending within 30m; returns `null` if paid, cancelled, or expired; omitted in Mini Program environments) |
+| `miniProgramPayInfo` | object/null | Mini Program payment object (returned in Mini Program environments; active if pending within 30m; returns `null` if paid, cancelled, or expired; omitted in Web environments) |
+
+---
+
+## 7. getHotelOrderDetail — Query Hotel Order Detail
+
+### Description
+Fetches complete structured details for a specific order for check-in verification, map navigation, pending payment, and receipts.
+
+### Input Parameters
+
+| Parameter | Type | Required | Description |
+|:---|:---|:---|:---|
+| `orderNo` | string | ✅ | Unified order number (e.g., `"H178..."`) |
+
+### Output
+
+#### Top-Level Fields
+| Field | Type | Nullable | Description |
+|:---|:---|:---|:---|
+| `success` | boolean | ❌ No | Whether query succeeded |
+| `code` | integer | ❌ No | Business status code (`2000` = success) |
+| `message` | string | ❌ No | Feedback message |
+| `orderDetail` | object | ✅ Yes | Structured order detail bundle (non-null on success) |
+
+#### orderDetail Detail Object
+
+| Field | Type | Description |
+|:---|:---|:---|
+| `baseInfo` | object | **[Module]** Base order & voucher information |
+| `baseInfo.orderNo` | string | Unified order identification number |
+| `baseInfo.referenceNo` | string | Price locking reference ID |
+| `baseInfo.hotelConfirmationNo` | string/null | Official hotel confirmation number for check-in |
+| `baseInfo.orderStatus` | string | Readable order status (e.g., `"Confirmed"`, `"Pending Payment"`, `"Cancelled"`) |
+| `baseInfo.orderDate` | string | Order creation timestamp (`YYYY-MM-DD HH:mm:ss`) |
+| `baseInfo.orderDetailUrl` | string | Direct H5 URL to view/manage order in browser |
+| `hotelInfo` | object | **[Module]** Hotel entity and geo information |
+| `hotelInfo.hotelName` | string | Full hotel name |
+| `hotelInfo.hotelImageUrl` | string | Main image CDN URL |
+| `hotelInfo.hotelPhone` | string | Front-desk telephone number |
+| `hotelInfo.platformSupportPhone` | string | RollingGo customer support hotline |
+| `hotelInfo.hotelAddress` | string | Physical address |
+| `hotelInfo.latitude` | double | Latitude for map navigation |
+| `hotelInfo.longitude` | double | Longitude for map navigation |
+| `stayInfo` | object | **[Module]** Itinerary and guest information |
+| `stayInfo.roomName` | string | Booked room name |
+| `stayInfo.bedTypeStr` | string/null | Bed description (e.g., `"1 King Bed"`) |
+| `stayInfo.checkInDate` | string | Check-in date (`YYYY-MM-DD`) |
+| `stayInfo.checkOutDate` | string | Check-out date (`YYYY-MM-DD`) |
+| `stayInfo.checkInTime` | string | Earliest check-in time (`14:00`) |
+| `stayInfo.checkOutTime` | string | Latest check-out time (`12:00`) |
+| `stayInfo.numOfRooms` | integer | Number of booked rooms |
+| `stayInfo.nights` | integer | Total nights |
+| `stayInfo.mealDesc` | string | Meal description |
+| `stayInfo.contact` | object | Primary order contact details |
+| `stayInfo.contact.name` | string | Contact name |
+| `stayInfo.contact.phone` | string | Contact telephone |
+| `stayInfo.contact.email` | string | Contact email |
+| `stayInfo.guestNames` | string[] | Array of registered guest names for check-in |
+| `priceInfo` | object | **[Module]** Price and payment status |
+| `priceInfo.totalPrice` | number | Total order price |
+| `priceInfo.currency` | string | Settlement currency |
+| `priceInfo.paymentUrl` | string/null | Web payment URL if pending payment within 30 minutes; returns `null` if paid, cancelled, or expired; omitted in Mini Program environments |
+| `priceInfo.miniProgramPayInfo` | object/null | Mini Program payment object if pending payment within 30 minutes; returns `null` if paid, cancelled, or expired; omitted in Web environments |
+| `priceInfo.paymentDeadline` | string/null | Payment expiration deadline (`YYYY-MM-DD HH:mm:ss`) |
+| `policyInfo` | object | **[Module]** Cancellation policy |
+| `policyInfo.isCancelable` | boolean | Whether free cancellation is currently permitted |
+| `policyInfo.freeCancelDeadline` | string/null | Exact deadline for penalty-free cancellation |
+| `policyInfo.cancelPolicyDesc` | string | Concise summary of cancellation terms |
+
+---
+
+## 8. preCancelHotelBooking — Pre-Cancel Booking & Penalty Quote
+
+### Description
+Pre-cancels a hotel booking to calculate applicable cancellation penalties and obtain a **10-minute valid** confirmation voucher `confirmId`. This tool must always be called before `confirmCancelHotelBooking`.
+* **Operation Hints**: `readOnlyHint: true`, `destructiveHint: false`
+
+### Input Parameters
+
+| Parameter | Type | Required | Description |
+|:---|:---:|:---:|:---|
+| `orderNo` | string | ✅ | RollingGo unique hotel order ID |
+
+### Output
+
+| Field | Type | Nullable | Description |
+|:---|:---:|:---:|:---|
+| `success` | boolean | ❌ No | Whether the API call succeeded |
+| `code` | integer | ❌ No | Business status code (`2000` = success) |
+| `canCancel` | boolean | ❌ No | **Core Decision Flag**: Whether online cancellation is permitted.<br>• `true` when `penaltyAmount == 0` (free cancellation);<br>• `false` when `penaltyAmount > 0` (penalty incurred) or non-refundable. |
+| `orderNo` | string | ❌ No | Order number operated upon |
+| `bookingId` | string/null | ✅ Yes | Supplier booking ID (returned only when `canCancel == true`) |
+| `confirmId` | string/null | ✅ Yes | **Cancellation confirmation token** (valid for 10 minutes; returns `"UNPAID"` for unpaid orders) |
+| `currency` | string | ❌ No | Currency code for penalty (e.g., `CNY`, `USD`) |
+| `penaltyAmount` | number | ❌ No | Assessed penalty fee (`0` indicates free cancellation) |
+| `message` | string | ❌ No | Multilingual guidance message (see matrix below) |
+
+#### `message` Multilingual Dynamic Matrix
+| Scenario | Language Code | `message` Template |
+|:---|:---:|:---|
+| **Free Cancellation**<br/>(`penaltyAmount == 0` or Unpaid Order) | `zh-CN` | `“查询成功，当前时段可免费取消（罚金 0.00 ${currency}）。凭证有效期 10 分钟。”`<br>*(Unpaid: “查询成功，该订单尚未支付，可免费取消。凭证有效期 10 分钟。”)* |
+| | `en` | `"Query successful. Free cancellation is currently available (Penalty: 0.00 ${currency}). Confirmation valid for 10 minutes."` |
+| | `ja` | `"照会に成功しました。現在無料キャンセルが可能です（キャンセル料：0.00 ${currency}）。確認コードの有効期限は10分間です。"` |
+| **Penalty Incurred / Non-Refundable**<br/>(`penaltyAmount > 0` or Non-Refundable Rate) | `zh-CN` | `“该订单取消将产生罚金（${penaltyAmount} ${currency}），按规则无法在线取消，如需取消请联系客服处理（客服电话：0755-36847480 / +852 30023293，客服邮箱：cs.hotel@rollinggo.cn）。”` |
+| | `en` | `"Cancelling this booking will incur a penalty of ${penaltyAmount} ${currency}. Online cancellation is not supported per policy. Please contact customer service (Phone: 0755-36847480 / +852 30023293, Email: cs.hotel@rollinggo.cn)."` |
+| | `ja` | `"この予約をキャンセルすると、キャンセル料（${penaltyAmount} ${currency}）が発生するため、オンラインでのキャンセルはできません。カスタマーサポートまでご連絡ください（電話：0755-36847480 / +852 30023293、メール：cs.hotel@rollinggo.cn）。"` |
+
+> **Customer Service Specification**: Phone: `0755-36847480 / +852 30023293`; Email is strictly segregated by business line: Hotel service uses **`cs.hotel@rollinggo.cn`** (Flight service uses `cs.flight@rollinggo.cn`).
+
+#### Example Output ①: Free Cancellation Available (English)
+```json
+{
+  "success": true,
+  "code": 2000,
+  "canCancel": true,
+  "orderNo": "H178969986438480851",
+  "bookingId": "H178969986438480851",
+  "confirmId": "UNPAID",
+  "penaltyAmount": 0,
+  "message": "Query successful. Free cancellation is currently available (Penalty: 0.00 CNY). Confirmation valid for 10 minutes."
+}
+```
+
+#### Example Output ②: Non-Refundable / Penalty Incurred (English)
+```json
+{
+  "success": false,
+  "canCancel": false,
+  "orderNo": "H178901055708172341",
+  "confirmId": null,
+  "currency": "USD",
+  "penaltyAmount": 120.0,
+  "message": "Cancelling this booking will incur a penalty of 120.00 USD. Online cancellation is not supported per policy. Please contact customer service (Phone: 0755-36847480 / +852 30023293, Email: cs.hotel@rollinggo.cn)."
+}
+```
+
+---
+
+## 9. confirmCancelHotelBooking — Confirm & Execute Cancellation
+
+### Description
+Executes the irreversible final cancellation of a hotel booking using `confirmId` and `bookingId` obtained from `preCancelHotelBooking`. Explicit user confirmation is required prior to calling.
+* **Operation Hints**: `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: true`
+
+### Input Parameters
+
+| Parameter | Type | Required | Description |
+|:---|:---:|:---:|:---|
+| `orderNo` | string | ✅ | Order ID returned from `preCancelHotelBooking` |
+| `bookingId` | string | ✅ | Supplier booking ID (`bookingId`) from `preCancelHotelBooking` |
+| `confirmId` | string | ✅ | 10-minute cancellation confirmation voucher from `preCancelHotelBooking` |
+| `description` | string | ❌ | Optional cancellation reason or remarks |
+
+### Output
+
+| Field | Type | Nullable | Description |
+|:---|:---:|:---:|:---|
+| `success` | boolean | ❌ No | Whether the cancellation succeeded |
+| `code` | integer | ❌ No | Business status code (`2000` = success) |
+| `message` | string | ❌ No | Cancellation outcome message |
+| `orderNo` | string | ❌ No | Successfully cancelled order ID |
+
+#### `message` Multilingual Rules
+* **Chinese (`zh-CN`)**: `“订单 ${orderNo} 已成功取消。”`
+* **English (`en`)**: `"Booking ${orderNo} has been successfully cancelled."`
+* **Japanese (`ja`)**: `"予約 ${orderNo} のキャンセルが完了しました。"`
+
+#### Example Output
+```json
+{
+  "success": true,
+  "code": 2000,
+  "message": "Booking H178969986438480851 has been successfully cancelled.",
+  "orderNo": "H178969986438480851"
+}
+```
+
+---
+
+## 10. Unified Error Codes & Exception Mapping
+
+| Code (`code`) | HTTP Status | Error Enum | Description | Client / Agent Action |
+|:---|:---:|:---|:---|:---|
+| `2000` | 200 | `SUCCESS` | Operation succeeded | Render success card and message |
+| `6001` | 403 | `BOOKING_FORBIDDEN` | Order does not exist or belongs to another user | Prompt user to check order number |
+| `6201` | 400 | `PRICE_CONFIRM_FAILED` | Price verification failed / room sold out | Guide user to search alternative rooms |
+| `6207` | 400 | `CONFIRM_ID_EXPIRED` | Cancellation voucher expired (> 10 mins) | Re-invoke `preCancelHotelBooking` for a fresh token |
+| `6301` | 400 | `BOOKING_NON_CANCELABLE` | Online cancellation disallowed by policy | Display customer service phone and email |
+| `6302` | 502 | `SUPPLIER_CANCEL_FAILED` | Upstream supplier cancellation error | Suggest retry or contact support |
+
+---
+
+*Maintained by: RollingGo Open Platform Engineering Team*  
+*Last Updated: 2026-10-16*
