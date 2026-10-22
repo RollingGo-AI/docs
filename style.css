@@ -23,3 +23,22 @@ html[lang="zh"] a[href*="x.com"],
 html[lang^="zh"] a[href*="x.com"] {
   display: none !important;
 }
+
+/* 将左侧边栏语言切换与主题切换模块置于最顶部（导航目录树正上方） */
+nav#sidebar-content {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.almond-nav-bottom-section {
+  order: -1 !important;
+  display: flex !important;
+  flex-direction: column-reverse !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.25rem !important;
+}
+
+.almond-nav-bottom-section-divider {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+}
