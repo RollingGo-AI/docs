@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "almond",
+  "theme": "mint",
   "name": "RollingGo Docs",
   "colors": {
     "primary": "#ef7025",
@@ -155,5 +155,11 @@
       "destination": "/:path*",
       "permanent": true
     }
-  ]
+  ],
+  "icons": {
+    "library": "fontawesome"
+  },
+  "appearance": {
+    "strict": true
+  }
 }
