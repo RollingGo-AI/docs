@@ -141,13 +141,18 @@
   },
   "redirects": [
     {
-      "source": "/en",
-      "destination": "/",
+      "source": "/en/:path*",
+      "destination": "/:path*",
       "permanent": true
     },
     {
-      "source": "/en/:path*",
-      "destination": "/:path*",
+      "source": "/en",
+      "destination": "/mcp-docs/quick-start",
+      "permanent": true
+    },
+    {
+      "source": "/en/",
+      "destination": "/mcp-docs/quick-start",
       "permanent": true
     }
   ]
