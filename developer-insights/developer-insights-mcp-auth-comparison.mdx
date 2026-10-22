@@ -1,38 +1,618 @@
 ---
-title: "MCP Integration: API Key vs. OAuth 2.0 Authorization Code"
+title: "MCP Integration Comparison: API Key vs. OAuth 2.0 Authorization Code"
 sidebarTitle: "API Key vs. OAuth 2.0"
 ---
 
-# RollingGo MCP Integration Methods
+# RollingGo MCP Integration Overview
 
-RollingGo MCP provides two integration modes to meet the needs of different business scenarios and project stages:
+RollingGo MCP provides two distinct integration modes to address varying business requirements and project maturity levels:
 
-- **API Key Quick Integration**: Uses simple Bearer Token authentication and provides 3 core tools. The Agent returns a booking URL, and the user completes checkout on RollingGo H5 or Mini Program. Ideal for content recommendation, fast prototyping, and lightweight integrations.
-- **OAuth 2.0 Authorization Code**: Uses standard OAuth 2.0 with PKCE and provides a full 7-tool transaction suite. The Agent independently handles price confirmation, booking creation, payment link generation, and order management within conversation.
+- **API Key Quick Integration**: Authenticates via a straightforward Bearer Token and provides 3 core search tools. Designed for rapid prototyping, internal tooling, and functional testing with self-service onboarding in under 5 minutes.
+- **OAuth 2.0 Full Integration**: Leverages the industry-standard Authorization Code flow and provides a comprehensive 7-tool transaction suite. Enables closed-loop, in-Agent payment processing and end-to-end order lifecycle management, engineered for enterprise production deployments.
 
----
-
-## 📊 Feature Comparison
-
-| Dimension | API Key Quick Integration | OAuth 2.0 Authorization Code |
-| :--- | :--- | :--- |
-| **Auth Method** | `Authorization: Bearer <API_KEY>` | Standard OAuth 2.0 Access Token (JWT) |
-| **Setup Complexity** | Zero configuration; instant automated approval | Requires OAuth client registration, redirect handling, and Token exchange |
-| **Number of Tools** | 3 tools (`searchHotels`, `getHotelDetail`, `getHotelSearchTags`) | 7 tools (Search + Price Lock + Booking Creation + Order List & Detail) |
-| **Checkout Flow** | User redirects to H5 / Mini Program via `bookingUrl` | Agent obtains `paymentUrl` and delivers direct checkout |
-| **Order Management** | User checks orders on web portal | Agent queries orders via `searchHotelOrders` / `getHotelOrderDetail` |
-| **Best For** | Developers, content creators, quick agent tools | Enterprise platforms, full-service concierge agents |
+Architectural selection should be evaluated across **project phase, payment requirements, user experience expectations, and engineering resources**.
 
 ---
 
-## 🚀 When to Choose Which Mode
+# 1. MCP Protocol & RollingGo MCP Service Overview
 
-### Choose API Key Quick Integration If:
-- You want to get started within 5 minutes without backend development.
-- Your application only needs hotel search, price comparison, or recommendation cards.
-- You prefer RollingGo to handle user identity, payments, customer service, and order tracking.
+## 1.1 What is MCP?
 
-### Choose OAuth 2.0 Authorization Code If:
-- You want a seamless end-to-end booking experience entirely within your Agent conversation.
-- You need to access user order history and provide automated check-in and cancellation assistance.
-- You are building an enterprise travel concierge or proprietary travel app.
+MCP (Model Context Protocol) is an open, standardized protocol designed to seamlessly connect AI models with external data sources, business tools, and operational systems.
+
+Traditional AI system integrations commonly rely on point-to-point connections:
+
+> N AI Applications × M Enterprise Systems = N × M Custom Integrations
+
+MCP standardizes connections over **JSON-RPC 2.0**, reducing integration complexity from **N × M down to N + M**, delivering:
+
+- Single integration effort
+- Standardized RPC invocations
+- Universal model interoperability
+- Centralized access and permission governance
+- Dynamic tool and capability discovery
+
+## 1.2 What is RollingGo MCP?
+
+RollingGo MCP is a **domain-specific service dedicated to hotel bookings and travel workflows**, built on top of the MCP protocol. It equips AI Agents and intelligent applications with standardized capabilities for:
+
+- Hotel search and discovery
+- Rich hotel detail queries
+- Real-time rate and inventory confirmation
+- Hotel room reservation
+- In-session payment generation
+- Order history lookup
+- Detailed order lifecycle tracking
+
+RollingGo MCP abstracts disparate, heterogeneous hotel supplier APIs into unified, ergonomic MCP Tools. Developers can rapidly construct fully capable hotel booking agents without wrestling with proprietary supplier protocols.
+
+## 1.3 Technical Architecture
+
+MCP utilizes a Client-Server two-tier architecture:
+
+**MCP Server**
+
+Encapsulates and governs:
+
+- Hotel business domain logic
+- Tools (execution interfaces)
+- Resources (contextual data assets)
+- Prompts (curated instructions)
+- Permission and authorization controls
+- Operational logging and security auditing
+
+**MCP Client**
+
+Embedded within the AI Agent or host application. Discovers and invokes tools exposed by the MCP Server through standardized MCP protocol messages.
+
+This decoupled architecture isolates server capabilities from client runtimes. When tools, business policies, or upstream vendor APIs evolve, updates are deployed centrally on the Server without requiring modifications to client implementations.
+
+---
+
+# 2. Core Comparison Between Integration Methods
+
+RollingGo MCP offers two technical paths. The foundational differences center on **authentication mechanisms, tool breadth, payment UX, and integration complexity**.
+
+| Comparison Dimension | API Key Quick Integration | OAuth 2.0 Full Integration |
+| :-- | :-- | :-- |
+| **Service Target** | RollingGo MCP | RollingGo MCP |
+| **Authentication** | Bearer Token | OAuth 2.0 Authorization Code |
+| **Credential Type** | Static API Key | Delegated User Grant + Access Token |
+| **Available Tools** | 3 Tools | 7 Tools |
+| **Hotel Search** | ✅ Supported | ✅ Supported |
+| **Hotel Details** | ✅ Supported | ✅ Supported |
+| **Search Tags / Filters** | ✅ Supported | ✅ Supported |
+| **Real-time Price Lock** | ❌ Not Available | ✅ Supported |
+| **Room Reservation** | Basic redirect support | ✅ Full in-Agent reservation |
+| **In-Agent Payment** | ❌ H5 / Mini Program redirect | ✅ Seamless in-session checkout |
+| **Order History** | ❌ Not Available | ✅ Supported |
+| **Order Detail Management** | ❌ Not Available | ✅ Supported |
+| **User Identity Binding** | ❌ Application-level only | ✅ Individual user context |
+| **Order Lifecycle Control** | ❌ Not Available | ✅ Full lifecycle management |
+| **Setup Complexity** | Minimal | Moderate (OAuth flow + token storage) |
+| **Time to Launch** | ~5 minutes | Typically 3–5 engineering days |
+| **Commercial Process** | Fully automated / Instant self-service | Enterprise partnership onboarding |
+| **Target Stage** | MVP / Prototype / Internal Testing | Production / Enterprise Consumer Apps |
+
+### 2.1 API Key Tools
+
+The API Key mode exposes 3 core read tools:
+
+```text
+searchHotels
+getHotelDetail
+getHotelSearchTags
+```
+
+Authentication Header:
+
+```http
+Authorization: Bearer YOUR_API_KEY
+```
+
+### 2.2 OAuth 2.0 Tools
+
+The OAuth 2.0 mode delivers the complete 7-tool transaction suite:
+
+```text
+getHotelSearchTags
+searchHotels
+getHotelDetail
+hotelPriceConfirm
+createHotelBookingWithPaymentURL
+searchHotelOrders
+getHotelOrderDetail
+```
+
+---
+
+# 3. API Key Quick Integration
+
+## 3.1 Key Advantages
+
+### Rapid Onboarding
+
+Developers obtain an API Key instantly via the developer portal and can start invoking tools immediately by injecting an HTTP header.
+
+Initial integration can be completed in **approximately 5 minutes**.
+
+### Zero Implementation Barrier
+
+Requires only an HTTP Authorization header:
+
+```http
+Authorization: Bearer YOUR_API_KEY
+```
+
+Eliminates the need to construct OAuth state machines, token exchange endpoints, or refresh schedulers.
+
+### 100% Self-Service
+
+Developers apply and configure credentials directly without waiting for commercial review or enterprise contracting.
+
+### Ideal for Rapid Validation
+
+Specifically tailored for:
+
+- Minimum Viable Products (MVPs)
+- Concept and functionality verification
+- Internal employee utilities
+- Early technical research
+- Fast prototypes and hackathons
+
+---
+
+# 4. API Key Use Cases and Limitations
+
+## 4.1 Applicable Scenarios
+
+### Internal Utilities
+
+Examples include:
+
+- Enterprise travel inquiry dashboards
+- Internal hotel search bots
+- Market research and hotel data analysis tools
+
+### Functional Prototyping
+
+Used to quickly test and validate:
+
+- Hotel search relevance
+- Real-time availability across destinations
+- Rich hotel metadata and amenity retrieval
+- LLM search prompt quality
+
+### Platforms with Existing Checkout Infrastructure
+
+Established OTAs or travel agencies with proprietary booking and checkout engines can utilize RollingGo MCP purely as an auxiliary supply and catalog discovery feed.
+
+---
+
+## 4.2 Limitations
+
+### Fragmented Payment Experience
+
+Under API Key mode, when a user selects a room, they must be redirected out of the conversation to the RollingGo H5 page or Mini Program to complete payment:
+
+> Agent Dialogue → Redirect to RollingGo H5 → Checkout & Payment
+
+This handoff breaks conversational continuity and risks drop-off.
+
+### Constrained Order Visibility
+
+API Key mode does not provide:
+
+- Historical order lookups
+- Granular booking status queries
+- In-app cancellation or post-booking assistance
+
+Post-sales inquiries must be handled externally or through custom developer database tracking.
+
+### Coarse-Grained Authorization
+
+API Keys represent application-level identity. They cannot naturally scope permissions per individual end-user.
+
+### Secret Management Responsibility
+
+Developers must observe credential hygiene:
+
+- Store API Keys strictly in server-side environment variables
+- Never expose API Keys in client-side code or public repositories
+- Configure IP whitelisting in production
+- Enforce application-side rate limiting to prevent key misuse
+
+---
+
+# 5. OAuth 2.0 Full Integration
+
+## 5.1 Core Architecture
+
+OAuth 2.0 utilizes the standard **Authorization Code Flow (with PKCE support)**:
+
+```text
+End User
+   ↓
+Developer Agent / Host App
+   ↓
+RollingGo Authorization Server
+   ↓
+User Grants Permission
+   ↓
+Authorization Code Issued
+   ↓
+Client Exchanges Code for Access Token
+   ↓
+Agent Calls RollingGo MCP with User Token
+```
+
+The scoped Access Token accompanies all subsequent MCP Tool calls to identify and authorize operations on behalf of the specific user.
+
+---
+
+# 6. Security and Technical Advantages of OAuth 2.0
+
+Compared to static credentials, OAuth 2.0 is purpose-built for enterprise-grade production reliability:
+
+## 6.1 Short-Lived Access Tokens
+
+Access tokens carry constrained expiration windows, substantially mitigating the impact of credential exposure.
+
+## 6.2 Refresh Token Rotation
+
+Enables automatic token renewal in the background without prompting users for repeated manual re-authorization.
+
+## 6.3 Granular User-Level Access Controls
+
+Permissions are scoped strictly to the authenticated user and authorized operational bounds, honoring the principle of least privilege.
+
+## 6.4 Rich User Identity Context
+
+Invocations are permanently anchored to verified user accounts, enabling:
+
+- Personalized order retrieval
+- Automated check-in and cancellation workflows
+- Behavioral analytics and recommendation engines
+- Complete audit logging
+- Tailored loyalty and VIP tier recognition
+
+---
+
+# 7. Complete OAuth 2.0 Tool Suite
+
+OAuth 2.0 provides 7 production-grade tools spanning the full travel booking lifecycle:
+
+## 7.1 Search & Discovery
+
+```text
+getHotelSearchTags
+searchHotels
+getHotelDetail
+```
+
+Query hotel lists, apply multi-criteria filtering (location, amenities, ratings, budgets), and retrieve room category details.
+
+## 7.2 Price & Inventory Lock
+
+```text
+hotelPriceConfirm
+```
+
+Verifies real-time room availability, confirms final dynamic room rates, and locks inventory to eliminate booking discrepancies caused by stale prices.
+
+## 7.3 Reservation & In-Agent Checkout
+
+```text
+createHotelBookingWithPaymentURL
+```
+
+Generates direct checkout links or QR payment prompts, enabling users to complete transactions directly within the conversation window.
+
+## 7.4 Post-Booking Order Management
+
+```text
+searchHotelOrders
+getHotelOrderDetail
+```
+
+Empowers the Agent to:
+
+- Retrieve past and upcoming reservations
+- Inspect detailed booking vouchers and confirmation numbers
+- Track payment and fulfillment status in real time
+- Coordinate cancellations, modifications, and customer service
+
+---
+
+# 8. Core Business Value of OAuth 2.0
+
+## 8.1 Seamless In-Agent Experience: Zero Handoff
+
+**API Key Flow**:
+
+```text
+Search → Room Selection → Redirect to RollingGo H5 → External Payment
+```
+
+**OAuth 2.0 Flow**:
+
+```text
+Search → Price Compare → In-Agent Booking → Instant Payment → Voucher Lookup
+```
+
+The entire transaction journey occurs seamlessly within the developer's own Agent or conversational interface.
+
+Users never leave the chat canvas, resulting in higher conversion rates, superior user satisfaction, and reduced churn.
+
+---
+
+# 9. Data Ownership & Customer Retention
+
+Under the OAuth 2.0 Authorization Code model, authenticated user relationships and contact identities (e.g., verified phone numbers) tie directly into the developer's platform ecosystem.
+
+This empowers developers to build and retain:
+
+- Proprietary user profiles
+- Comprehensive transaction histories
+- Re-engagement and repurchase loops
+- Personalized AI recommendation engines
+- Native loyalty and rewards programs
+- Unified customer lifecycle management
+
+Under API Key mode, transactions finalize on RollingGo H5, meaning order relationships and customer accounts are primarily anchored on the RollingGo side, relegating the developer to a traffic referral role.
+
+---
+
+# 10. Brand Consistency & White-Labeling
+
+With OAuth 2.0, users remain immersed in the developer's branded application from initial query to final receipt.
+
+Users are never redirected to third-party brand interfaces during payment or order lookup.
+
+For businesses looking to:
+
+- Build strong proprietary brand equity
+- Deliver unified, bespoke user experiences
+- Maintain complete commercial ownership
+- Establish hotel booking as a core native feature
+
+OAuth 2.0 represents the indispensable technical foundation.
+
+---
+
+# 11. Functional Completeness
+
+The 7-tool OAuth 2.0 suite enables full transaction orchestration:
+
+```text
+Hotel Search
+     ↓
+Hotel Details & Rooms
+     ↓
+Real-Time Price Lock
+     ↓
+Booking Creation
+     ↓
+Direct Payment
+     ↓
+Order Listing
+     ↓
+Order Details & Voucher
+```
+
+Supports:
+
+- Real-time order queries
+- Booking status polling
+- After-sales modifications and refunds
+- User reservation dashboards
+- End-to-end travel lifecycle management
+
+This transforms hotel booking from a simple referral link into a true native capability deeply embedded in your product architecture.
+
+---
+
+# 12. Summary of Advantages
+
+## API Key Quick Integration
+
+**Positioning: Rapid Onboarding, Fast Validation, Traffic Referral**
+
+Key Strengths:
+
+- 5-minute setup
+- Low engineering overhead
+- No commercial contracting bottleneck
+- 100% self-service
+- Perfect for MVPs and internal utilities
+- Suitable for platforms with existing checkout flows
+
+Guiding Philosophy:
+
+> **Get connected first; validate business viability fast.**
+
+---
+
+## OAuth 2.0 Full Integration
+
+**Positioning: Deep Integration, Proprietary Data, Closed-Loop Experience**
+
+Key Strengths:
+
+- 7 comprehensive tools
+- Real-time price confirmation & locking
+- In-Agent seamless payment
+- Full order history and detail tracking
+- User-level permissions and security
+- Complete booking lifecycle management
+- Built for enterprise production scale
+
+Guiding Philosophy:
+
+> **Make hotel booking a native, differentiating core capability of your product.**
+
+---
+
+# 13. Decision Matrix & Selection Guide
+
+Evaluate across three foundational dimensions:
+
+## 13.1 Project Stage
+
+| Project Phase | Recommended Solution |
+| :-- | :-- |
+| Proof of Concept (PoC) | **API Key** |
+| Minimum Viable Product (MVP) | **API Key** |
+| Feature & Prompt Testing | **API Key** |
+| Commercial Launch | **OAuth 2.0** |
+| Scaled Production | **OAuth 2.0** |
+| Enterprise Production | **OAuth 2.0** |
+
+## 13.2 Payment & Checkout Needs
+
+| Checkout Requirement | Recommended Solution |
+| :-- | :-- |
+| Existing internal payment & order engine | **API Key** |
+| Search & recommendation feed only | **API Key** |
+| In-Agent conversational checkout required | **OAuth 2.0** |
+| Complete post-booking lifecycle required | **OAuth 2.0** |
+
+## 13.3 Team & Technical Resources
+
+| Engineering Capacity | Recommended Solution |
+| :-- | :-- |
+| Limited resources / Single developer | **API Key** |
+| Urgent launch deadline (\< 1 week) | **API Key** |
+| Dedicated backend engineering team | **OAuth 2.0** |
+| Strict enterprise security & compliance standards | **OAuth 2.0** |
+
+---
+
+# 14. Scenario Recommendations
+
+## Recommended: API Key
+
+Best suited for:
+
+- Internal employee travel assistants
+- Enterprise intranet search utilities
+- Functional feasibility tests and prompt evals
+- Hackathon and prototype demonstrations
+- Initial MVP market tests
+- Major OTAs with proprietary booking engines seeking additional inventory
+- Content creators providing hotel recommendation cards
+
+## Recommended: OAuth 2.0
+
+Best suited for:
+
+- Dedicated travel booking mobile and web apps
+- Metasearch and hotel rate comparison platforms
+- Autonomous AI travel concierge agents
+- Consumer-facing lifestyle and assistant applications
+- Enterprise corporate travel management systems (TMC)
+- E-commerce platforms adding travel categories
+- Loyalty point redemption and member benefit portals
+- Luxury hotel direct-booking experiences
+
+---
+
+# 15. Implementation Roadmaps
+
+## 15.1 API Key Implementation Roadmap
+
+```text
+1. Apply for API Key in Developer Portal
+       ↓
+2. Configure Authorization Header
+       ↓
+3. Invoke searchHotels tool
+       ↓
+4. Verify MCP protocol connectivity
+       ↓
+5. Integrate detail and tag tools
+       ↓
+6. Finalize functional prompt testing
+```
+
+## 15.2 OAuth 2.0 Implementation Roadmap
+
+```text
+1. Obtain Enterprise Integration Documentation & Client Credentials
+       ↓
+2. Configure Client ID, Client Secret, and Redirect URIs
+       ↓
+3. Implement OAuth 2.0 Authorization Code flow with PKCE
+       ↓
+4. Deploy Token storage, refresh, and rotation services
+       ↓
+5. Integrate the 7 MCP Tools
+       ↓
+6. Complete end-to-end Booking + In-Agent Payment testing
+```
+
+---
+
+# 16. Key Risk Factors & Mitigations
+
+## API Key
+
+Key Risks:
+
+- User friction during external H5 payment redirection
+- Inability to inspect or resolve user order issues directly
+- Exposure risks of static API keys
+- Absence of user-level access controls
+
+Mitigation Checklist:
+
+- Optimize H5 redirect and callback UX
+- Store keys strictly in server environments (never client bundles)
+- Enforce IP whitelisting on upstream gateways
+- Monitor rate limits and anomaly spikes
+
+## OAuth 2.0
+
+Key Considerations:
+
+- Initial architectural and implementation complexity
+- Implementing robust OAuth 2.0 authorization code handshakes
+- Secure token lifecycle management (storage, renewal, revocation)
+- Standard corporate security, data privacy, and compliance reviews
+
+---
+
+# 17. Final Guiding Principles
+
+The decision can be summarized in one core maxim:
+
+> **Use API Key for rapid prototyping; use OAuth 2.0 for enterprise production applications.**
+
+To break it down:
+
+**API Key = Rapid Onboarding + Minimal Barrier + Immediate Validation**
+
+The optimal choice for getting hotel booking capabilities running in minutes.
+
+**OAuth 2.0 = Deep Integration + Customer Ownership + Closed-Loop Payments + Full Order Lifecycle**
+
+The definitive architecture for building a sustainable, long-term enterprise hotel booking solution.
+
+For evolving products, a phased rollout strategy is strongly recommended:
+
+```text
+Phase 1: API Key
+Rapidly validate market appetite and AI agent capabilities
+       ↓
+Phase 2: Product Maturity
+Define user journey, unit economics, and operational flows
+       ↓
+Phase 3: OAuth 2.0
+Deploy full integration, in-Agent payments, and lifecycle management
+```
+
+In summary:
+
+> **API Key is the lightweight gateway for rapid access and traffic referrals; OAuth 2.0 is the enterprise vehicle for deep integration, customer retention, and seamless in-Agent experiences.**
+
+If your goal is simply to equip an Agent with hotel search capabilities, API Key delivers everything you need today. If your goal is to make hotel reservations a signature native capability of your product—allowing users to **search, compare, reserve, pay, and track orders entirely within the Agent conversation**—**OAuth 2.0 Authorization Code mode** is the clear path forward.

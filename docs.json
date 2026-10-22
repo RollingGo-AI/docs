@@ -104,16 +104,16 @@
                 ]
               },
               {
-                "group": "常见问题解答 (FAQ)",
-                "pages": [
-                  "zh/faq/faq"
-                ]
-              },
-              {
                 "group": "客户端接入与比较",
                 "pages": [
                   "zh/developer-insights/mcp-client-config",
                   "zh/developer-insights/developer-insights-mcp-auth-comparison"
+                ]
+              },
+              {
+                "group": "常见问题解答 (FAQ)",
+                "pages": [
+                  "zh/faq/faq"
                 ]
               }
             ]
