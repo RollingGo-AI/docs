@@ -21,7 +21,7 @@
     ],
     "primary": {
       "type": "button",
-      "href": "https://partner.rollinggo.ai",
+      "href": "https://partner.rollinggo.ai/register",
       "label": "Get Started"
     }
   },
@@ -83,7 +83,7 @@
           ],
           "primary": {
             "type": "button",
-            "href": "https://partner.rollinggo.ai",
+            "href": "https://partner.rollinggo.ai/register",
             "label": "Get Started"
           }
         }
@@ -144,7 +144,7 @@
           ],
           "primary": {
             "type": "button",
-            "href": "https://partner.rollinggo.cn",
+            "href": "https://partner.rollinggo.cn/register",
             "label": "申请入驻"
           }
         }
