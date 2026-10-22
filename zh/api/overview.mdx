@@ -1,0 +1,68 @@
+---
+title: "API 概览"
+sidebarTitle: "API 概览"
+description: "RollingGo 酒旅 REST API 与 MCP 接口概览，包含基准请求地址、鉴权规范、统一响应格式与频次限制说明。"
+---
+
+RollingGo 为企业与开发者伙伴提供兼具 REST API 与 MCP（Model Context Protocol）特性的酒旅服务接入能力，覆盖机票搜索、酒店房型查询、价格比对、下单创单与履约管理全链路。
+
+## 服务基准地址 (Base URLs)
+
+请根据您的入驻地域选择匹配的 API 基准地址：
+
+| 地域 | 基准地址 (Base URL) | 说明 |
+| --- | --- | --- |
+| 中国大陆 (国内站) | `https://api.rollinggo.cn/v1` | 境内 BGP 节点加速，人民币 (CNY) 计费 |
+| 国际 / 港澳台 (海外站) | `https://api.rollinggo.ai/v1` | 全球多区域 CDN 加速，美元 (USD) 计费 |
+
+## 请求规范
+
+每个向 RollingGo 发起的 API 请求需满足：
+- 请求头声明 `Content-Type: application/json`
+- 请求头携带 `Authorization: Bearer YOUR_API_KEY`（详见 [鉴权认证](/zh/api/authentication)）
+- 请求体必须为合法的 JSON 格式
+
+## 统一响应格式
+
+所有接口均返回标准 JSON 结构，通过顶层 `status` 字段指示成功或失败：
+
+**调用成功响应：**
+```json
+{
+  \"status\": \"ok\",
+  \"data\": { ... },
+  \"requestId\": \"req_abc123\"
+}
+```
+
+**调用失败响应：**
+```json
+{
+  \"status\": \"error\",
+  \"code\": \"unauthorized\",
+  \"message\": \"无效或缺失的 API Key\",
+  \"requestId\": \"req_def456\"
+}
+```
+
+## 频次与速率限制 (Rate Limits)
+
+API 响应中会包含以下 Header 用于实时了解您的调用余量：
+
+| 响应头 | 说明 |
+| --- | --- |
+| `X-RateLimit-Limit` | 当前时间窗口内允许的最大请求总数 |
+| `X-RateLimit-Remaining` | 当前时间窗口内的剩余请求次数 |
+| `X-RateLimit-Reset` | 频次窗口重置的 Unix 时间戳 |
+
+超频时接口将返回 HTTP `429 Too Many Requests`。
+
+## 可用核心接口清单
+
+| 接口端点 | HTTP 方法 | 功能描述 |
+| --- | --- | --- |
+| `/travel/search` | `POST` | 查询机票、酒店及打包酒旅资源 |
+| `/travel/book` | `POST` | 锁定房型/票务并创建预订订单 |
+| `/travel/booking/{id}` | `GET` | 实时查询订单详情与出票状态 |
+| `/webhooks/register` | `POST` | 注册接收出票/订单变更的 Webhook 地址 |
+| `/webhooks/{id}` | `DELETE` | 注销已注册的 Webhook |

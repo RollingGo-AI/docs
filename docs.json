@@ -29,68 +29,144 @@
     }
   },
   "navigation": {
-    "tabs": [
+    "languages": [
       {
-        "tab": "Documentation",
-        "groups": [
+        "language": "en",
+        "tabs": [
           {
-            "group": "Get Started",
-            "pages": [
-              "introduction",
-              "quickstart",
-              "regional-setup"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Get Started",
+                "pages": [
+                  "introduction",
+                  "quickstart",
+                  "regional-setup"
+                ]
+              },
+              {
+                "group": "Partner Types",
+                "pages": [
+                  "partners/enterprise",
+                  "partners/developer",
+                  "partners/kol",
+                  "partners/personal"
+                ]
+              },
+              {
+                "group": "Credentials & Access",
+                "pages": [
+                  "credentials/api-keys",
+                  "credentials/distribution-links",
+                  "credentials/account-activation"
+                ]
+              },
+              {
+                "group": "Guides",
+                "pages": [
+                  "guides/mcp-integration",
+                  "guides/ai-tool-setup",
+                  "guides/affiliate-monetization"
+                ]
+              },
+              {
+                "group": "Support",
+                "pages": [
+                  "support/faq",
+                  "support/troubleshooting"
+                ]
+              }
             ]
           },
           {
-            "group": "Partner Types",
-            "pages": [
-              "partners/enterprise",
-              "partners/developer",
-              "partners/kol",
-              "partners/personal"
-            ]
-          },
-          {
-            "group": "Credentials & Access",
-            "pages": [
-              "credentials/api-keys",
-              "credentials/distribution-links",
-              "credentials/account-activation"
-            ]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "guides/mcp-integration",
-              "guides/ai-tool-setup",
-              "guides/affiliate-monetization"
-            ]
-          },
-          {
-            "group": "Support",
-            "pages": [
-              "support/faq",
-              "support/troubleshooting"
+            "tab": "API Reference",
+            "groups": [
+              {
+                "group": "Overview",
+                "pages": [
+                  "api/overview",
+                  "api/authentication"
+                ]
+              },
+              {
+                "group": "MCP Endpoints",
+                "pages": [
+                  "api/travel-search",
+                  "api/booking",
+                  "api/webhooks"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "API Reference",
-        "groups": [
+        "language": "zh",
+        "tabs": [
           {
-            "group": "Overview",
-            "pages": [
-              "api/overview",
-              "api/authentication"
+            "tab": "使用文档",
+            "groups": [
+              {
+                "group": "快速入门",
+                "pages": [
+                  "zh/index",
+                  "zh/introduction",
+                  "zh/quickstart",
+                  "zh/regional-setup"
+                ]
+              },
+              {
+                "group": "合作身份",
+                "pages": [
+                  "zh/partners/enterprise",
+                  "zh/partners/developer",
+                  "zh/partners/kol",
+                  "zh/partners/personal"
+                ]
+              },
+              {
+                "group": "凭证与接入",
+                "pages": [
+                  "zh/credentials/api-keys",
+                  "zh/credentials/distribution-links",
+                  "zh/credentials/account-activation"
+                ]
+              },
+              {
+                "group": "进阶指南",
+                "pages": [
+                  "zh/guides/mcp-integration",
+                  "zh/guides/ai-tool-setup",
+                  "zh/guides/affiliate-monetization"
+                ]
+              },
+              {
+                "group": "帮助与支持",
+                "pages": [
+                  "zh/support/faq",
+                  "zh/support/troubleshooting"
+                ]
+              }
             ]
           },
           {
-            "group": "MCP Endpoints",
-            "pages": [
-              "api/travel-search",
-              "api/booking",
-              "api/webhooks"
+            "tab": "API 参考",
+            "groups": [
+              {
+                "group": "概览",
+                "pages": [
+                  "zh/api/overview",
+                  "zh/api/authentication"
+                ]
+              },
+              {
+                "group": "MCP 接口",
+                "pages": [
+                  "zh/api/travel-search",
+                  "zh/api/booking",
+                  "zh/api/webhooks"
+                ]
+              }
             ]
           }
         ]

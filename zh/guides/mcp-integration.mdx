@@ -1,0 +1,90 @@
+---
+title: "MCP 协议接入"
+sidebarTitle: "MCP 协议接入"
+description: "通过 Model Context Protocol (MCP) 快速将酒旅搜索、实时比价与预订流程连接至您的应用或智能体。"
+---
+
+RollingGo 通过标准的 **Model Context Protocol (MCP)** 将酒旅核心能力（机票/酒店搜索、比价推荐与预订履约）封装为结构化工具。MCP 是一套开放协议，允许 AI 智能体通过 WebSocket 或 HTTP 自动发现并调用外部工具，使您的应用程序在无需繁琐定制联调的情况下迅速具备智能酒旅服务能力。持有企业合作或开发者凭证即可直接发起调用。
+
+## 前置准备
+
+- 拥有有效的 **企业合作** 或 **开发者** 账号
+- 已获取 **API Key**（从 [凭证管理 → API Key 管理](/zh/credentials/api-keys) 查看）
+- 具备 **Node.js 18+** 或 **Python 3.10+** 开发运行环境
+
+## MCP 连接参数
+
+| 参数项 | 中国大陆节点 | 国际节点 |
+| --- | --- | --- |
+| **接入端点** | `wss://mcp.rollinggo.cn/v1` | `wss://mcp.rollinggo.ai/v1` |
+| **支持协议** | WebSocket (流式响应) / HTTP (单轮交互) | WebSocket (流式响应) / HTTP (单轮交互) |
+| **鉴权方式** | 握手阶段携带 Bearer Token | 握手阶段携带 Bearer Token |
+
+在建立 WebSocket 握手或发起 HTTP 请求时，请在 `Authorization` 头中携带您的 API Key：
+
+```text
+Authorization: Bearer <YOUR_API_KEY>
+```
+
+## 接入步骤
+
+<Steps>
+  <Step title="安装官方 MCP 客户端 SDK">
+    在您的项目中安装 RollingGo MCP 客户端类库：
+
+    <CodeGroup>
+
+    ```bash npm
+    npm install @rollinggo/mcp-client
+    ```
+
+    ```bash pnpm
+    pnpm add @rollinggo/mcp-client
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="使用 API Key 初始化客户端">
+    从环境变量中安全读取 API Key 并指定目标地域：
+
+    ```javascript rollinggo-client.js
+    import { RollingGoMCP } from '@rollinggo/mcp-client';
+    
+    const client = new RollingGoMCP({
+      apiKey: process.env.ROLLINGGO_API_KEY,
+      region: 'china', // 或 'international'
+    });
+    ```
+  </Step>
+  <Step title="发起酒旅搜索调用">
+    调用 `travel_search` 工具查询酒店或机票：
+
+    ```javascript
+    const results = await client.tools.call('travel_search', {
+      city: '杭州',
+      checkInDate: '2026-11-01',
+      checkOutDate: '2026-11-03',
+      keywords: '西湖 湖景房'
+    });
+    console.log(results);
+    ```
+  </Step>
+  <Step title="解析与渲染返回数据">
+    搜索成功后将返回结构化的结果列表，包含酒店信息、房型详情与实时报价。
+  </Step>
+  <Step title="发起下单与预订">
+    将用户选定的房型标识及入住人信息传入预订接口完成创单。
+  </Step>
+</Steps>
+
+## 进阶参考
+
+<CardGroup cols={2}>
+  <Card title="酒旅搜索接口参考" icon="magnifying-glass" href="/zh/api/travel-search">
+    查阅 travel_search 接口的全部入参、过滤条件与返回字段。
+  </Card>
+
+  <Card title="预订接口参考" icon="ticket" href="/zh/api/booking">
+    学习创建预订、查询订单状态与处理退改的完整接口规范。
+  </Card>
+</CardGroup>
