@@ -371,7 +371,7 @@ Fetches a lightweight summary list of hotel orders for the current user to preve
 
 | Parameter | Type | Required | Default | Description |
 |:---|:---|:---|:---|:---|
-| `status` | string | ❌ | `"ALL"` | Order lifecycle status filter:<br>• `ALL` (All orders)<br>• `PENDING` (Active / Upcoming: `PreBook`, `Booked`, `Pending`, `OnRequest`, `Confirmed`)<br>• `FINISHED` (Ended: `Canceled`, `Failed`, `Finished`) |
+| `status` | string | ❌ | `"ALL"` | Order lifecycle status filter:<br />• `ALL` (All orders)<br />• `PENDING` (Active / Upcoming: `PreBook`, `Booked`, `Pending`, `OnRequest`, `Confirmed`)<br />• `FINISHED` (Ended: `Canceled`, `Failed`, `Finished`) |
 | `dateRange` | object | ❌ | — | Booking date range filter |
 | `dateRange.startDate` | string | ❌ | — | Start date (`YYYY-MM-DD`) |
 | `dateRange.endDate` | string | ❌ | — | End date (`YYYY-MM-DD`) |
@@ -495,7 +495,7 @@ Pre-cancels a hotel booking to calculate applicable cancellation penalties and o
 |:---|:---:|:---:|:---|
 | `success` | boolean | ❌ No | Whether the API call succeeded |
 | `code` | integer | ❌ No | Business status code (`2000` = success) |
-| `canCancel` | boolean | ❌ No | **Core Decision Flag**: Whether online cancellation is permitted.<br>• `true` when `penaltyAmount == 0` (free cancellation);<br>• `false` when `penaltyAmount > 0` (penalty incurred) or non-refundable. |
+| `canCancel` | boolean | ❌ No | **Core Decision Flag**: Whether online cancellation is permitted.<br />• `true` when `penaltyAmount == 0` (free cancellation);<br />• `false` when `penaltyAmount > 0` (penalty incurred) or non-refundable. |
 | `orderNo` | string | ❌ No | Order number operated upon |
 | `bookingId` | string/null | ✅ Yes | Supplier booking ID (returned only when `canCancel == true`) |
 | `confirmId` | string/null | ✅ Yes | **Cancellation confirmation token** (valid for 10 minutes; returns `"UNPAID"` for unpaid orders) |
@@ -506,7 +506,7 @@ Pre-cancels a hotel booking to calculate applicable cancellation penalties and o
 #### `message` Multilingual Dynamic Matrix
 | Scenario | Language Code | `message` Template |
 |:---|:---:|:---|
-| **Free Cancellation**<br/>(`penaltyAmount == 0` or Unpaid Order) | `zh-CN` | `“查询成功，当前时段可免费取消（罚金 0.00 ${currency}）。凭证有效期 10 分钟。”`<br>*(Unpaid: “查询成功，该订单尚未支付，可免费取消。凭证有效期 10 分钟。”)* |
+| **Free Cancellation**<br/>(`penaltyAmount == 0` or Unpaid Order) | `zh-CN` | `“查询成功，当前时段可免费取消（罚金 0.00 ${currency}）。凭证有效期 10 分钟。”`<br />*(Unpaid: “查询成功，该订单尚未支付，可免费取消。凭证有效期 10 分钟。”)* |
 | | `en` | `"Query successful. Free cancellation is currently available (Penalty: 0.00 ${currency}). Confirmation valid for 10 minutes."` |
 | | `ja` | `"照会に成功しました。現在無料キャンセルが可能です（キャンセル料：0.00 ${currency}）。確認コードの有効期限は10分間です。"` |
 | **Penalty Incurred / Non-Refundable**<br/>(`penaltyAmount > 0` or Non-Refundable Rate) | `zh-CN` | `“该订单取消将产生罚金（${penaltyAmount} ${currency}），按规则无法在线取消，如需取消请联系客服处理（客服电话：0755-36847480 / +852 30023293，客服邮箱：cs.hotel@rollinggo.cn）。”` |
