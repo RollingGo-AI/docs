@@ -1,86 +1,154 @@
 ---
-title: "OAuth Integration Documentation"
+title: "OAuth 2.0 Integration Guide"
 sidebarTitle: "OAuth Integration"
+description: "RollingGo OAuth 2.0 authorization service integration guide supporting Authorization Code Grant and PKCE."
 icon: "key"
 ---
 
-# RollingGo OAuth 2.0 Authorization Service Documentation
+Welcome to the RollingGo OAuth 2.0 authorization service! This document helps third-party developers integrate RollingGo account login into their own applications. We support the standard **OAuth 2.0 Authorization Code Grant**, and strongly recommend clients (especially public clients such as mobile, desktop, and SPA) use the **PKCE (Proof Key for Code Exchange)** security extension.
 
-Welcome to the RollingGo OAuth 2.0 Authorization Service! This document is designed to help third-party developers integrate RollingGo account login into their applications. We support the standard **OAuth 2.0 Authorization Code Grant**, and recommend that clients (especially public clients such as mobile applications, desktop applications, SPAs, etc.) use the **PKCE (Proof Key for Code Exchange)** security extension.
+RollingGo provides two service nodes. The integration flow and parameters are identical across nodes; only the endpoint domains differ. Choose the node that matches your target users:
 
-RollingGo provides two service nodes. The integration process and parameters are exactly the same; only the endpoint domains are different. Please select the appropriate node based on your target users:
-
-| Service Node | Applicable Users | API Domain | MCP Host |
+| Service Node | Target Users | API Domain | MCP Host |
 | :--- | :--- | :--- | :--- |
 | **Mainland China** | Users in Mainland China | `api.rollinggo.cn` | `mcp.rollinggo.cn` |
-| **Overseas & Hong Kong/Macau/Taiwan** | Users outside Mainland China | `api.rollinggo.ai` | `mcp.rollinggo.ai` |
+| **Overseas, Hong Kong, Macao & Taiwan** | Users outside Mainland China | `api.rollinggo.ai` | `mcp.rollinggo.ai` |
 
-> MCP Host is the host of the RollingGo MCP (Model Context Protocol) service. It allows AI applications (such as agents and LLM clients) to connect to RollingGo's hotel capabilities through the standard MCP protocol. The connection URL is `https://MCP_HOST/mcp/hotel`.
+> The MCP Host is the host of the RollingGo MCP (Model Context Protocol) service, which allows AI applications (e.g., agents, LLM clients) to connect to RollingGo hotel capabilities via the standard MCP protocol. The connection URL is `https://<MCP_HOST>/mcp/hotel`; see "Scenario 2: Connecting to the MCP Service" below.
+
+> In the examples below, the `<API_DOMAIN>` and `<MCP_HOST>` placeholders are used throughout. Replace them with the domains of your corresponding node.
 
 ---
 
-## 🚀 Authorization Integration Flow
+## 🚀 Authorization Flow
 
-The integration process mainly consists of three steps:
-1. Guide the user to the authorization page and obtain an authorization code (`code`).
-2. Receive the redirect and obtain the authorization code (`code`).
+> **Before you start**: Make sure you have obtained your `client_id` (client ID) from RollingGo, and that RollingGo has configured the allowed `redirect_uri`(s) (redirect URI) for you. If not yet obtained, please contact your onboarding Business Manager.
+
+The integration flow consists of three steps:
+1. Direct the user to the authorization page to obtain an authorization code (`code`).
+2. Receive the redirect and extract the authorization code (`code`).
 3. Exchange the authorization code (`code`) for an access token (`access_token`).
 
 ### Step 1: Request Authorization
 
-Your application needs to redirect the user to the RollingGo authorization endpoint.
+Your application should redirect the user to the RollingGo authorization endpoint.
 
-**Request Method**: `GET`
+**Method**: `GET`
 
-**Request URL**:
+**Request URL** (choose based on your node):
 - **Mainland China**: `https://api.rollinggo.cn/oauth2/authorize`
-- **Overseas & Hong Kong/Macau/Taiwan**: `https://api.rollinggo.ai/oauth2/authorize`
+- **Overseas, Hong Kong, Macao & Taiwan**: `https://api.rollinggo.ai/oauth2/authorize`
 
 **Request Parameters (Query)**:
 
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `client_id` | String | **Yes** | Unique identifier of your application |
-| `redirect_uri` | String | **Yes** | Redirect address after successful authorization |
-| `response_type` | String | **Yes** | Fixed value: `code` |
-| `scope` | String | Recommended | Requested permission scope (e.g., `openid email profile hotel:order:read`) |
-| `resource` | String | Recommended | URI of the target resource server (`https://mcp.rollinggo.cn/mcp/hotel` or `https://mcp.rollinggo.ai/mcp/hotel`) |
-| `state` | String | **Strongly Recommended** | Unpredictable random string for CSRF protection |
-| `code_challenge` | String | **Yes** | Base64URL-encoded SHA256 hash of `code_verifier` |
-| `code_challenge_method` | String | **Yes** | Fixed value: `S256` |
+| `client_id` | String | **Yes** | Your application's unique identifier ID (provided by your RollingGo Business Manager during onboarding; no fixed format required) |
+| `redirect_uri` | String | **Yes** | The redirect address after successful authorization. Must exactly match the Redirect URI you submitted to the RollingGo Business Manager and RollingGo configured (including protocol, domain, port, and path). Must be URL-encoded |
+| `response_type` | String | **Yes** | Fixed value: `code`. RollingGo only supports the authorization code flow |
+| `scope` | String | Recommended | The scopes you are requesting, separated by spaces. For example: `openid email profile hotel:order:read`. Request only what you actually need to avoid users hesitating over excessive permissions |
+| `resource` | String | Recommended | The URI of the target resource server. Used for RFC 8707 Resource Indication, ensuring the issued token is restricted to the specified resource. For the Mainland China node, use `https://mcp.rollinggo.cn/mcp/hotel`; for the Overseas, Hong Kong, Macao & Taiwan node, use `https://mcp.rollinggo.ai/mcp/hotel` |
+| `state` | String | **Strongly recommended** | An unguessable random string generated by your application (32+ characters recommended) to prevent CSRF attacks. It will be returned unchanged after authorization. Your application MUST validate this parameter in the callback |
+| `code_challenge` | String | **Yes** | PKCE challenge value. The value obtained by SHA256-hashing the client-generated random `code_verifier` and Base64URL-encoding it. See "PKCE: Required Reading" above for how to generate it. Prevents the authorization code from being used after interception |
+| `code_challenge_method` | String | **Yes** | PKCE challenge method. Fixed value: `S256` (the only PKCE method supported by the server) |
+| `prompt` | String | Optional | Controls the authorization page behavior. Set to `consent` to force the consent screen to appear (even if the user has previously authorized this app). Set to `login` to force the user to sign in again (even if a session already exists) |
+
+**Request Example** (replace `<API_DOMAIN>` and `<MCP_HOST>` with your node's domains):
+```text
+https://<API_DOMAIN>/oauth2/authorize?client_id=your_client_id&redirect_uri=https%3A%2F%2Fyour-app.com%2Fcallback&response_type=code&scope=openid%20email%20profile%20hotel%3Aorder%3Aread&resource=https%3A%2F%2F<MCP_HOST>%2Fmcp%2Fhotel&state=af0ifjsldkj&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&prompt=consent
+```
+
+**Error Responses**:
+
+| HTTP Status | Error Scenario | Error Code | Description |
+| :--- | :--- | :--- | :--- |
+| 400 Bad Request | Missing `client_id` | `invalid_request` | A required parameter is missing |
+| 400 Bad Request | Missing `response_type` or value is not `code` | `unsupported_response_type` | Only `code` is supported |
+| 400 Bad Request | `client_id` does not exist or is invalid | `invalid_client` | Application not configured or has been disabled |
+| 400 Bad Request | `redirect_uri` does not match the server configuration | `invalid_redirect_uri` | Callback address is not on the allowlist |
+| 400 Bad Request | `code_challenge_method` is not `S256` | `invalid_request` | Only S256 is supported |
+
+> **User experience note**: If all parameters pass validation, RollingGo displays the sign-in page (email + verification code login). After the user signs in, if this is the app's first authorization, a consent screen lists all requested scopes and their meanings. After the user confirms, the browser redirects to the `redirect_uri` with the authorization code.
 
 ---
 
 ### Step 2: Handle Callback
 
-After the user grants authorization, the browser redirects to your `redirect_uri`:
+After the user signs in and consents on the RollingGo page, the browser will redirect to the `redirect_uri` you provided in Step 1, with the authorization code (`code`) appended to the URL's query string.
 
+**Redirect Example**:
 ```text
 https://your-app.com/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=af0ifjsldkj
 ```
+
+**Callback Parameters**:
+
+| Parameter | Description |
+| :--- | :--- |
+| `code` | The authorization code. Short-lived (the actual expiration is determined by the server response) and single-use. It becomes invalid immediately after use |
+| `state` | The random string you passed when requesting authorization. **Your application MUST verify that this matches the value you sent**, to prevent CSRF attacks |
+
+**Error Callback Example** (when the user denies authorization or an error occurs):
+```text
+https://your-app.com/callback?error=access_denied&error_description=%E7%94%A8%E6%88%B7%E6%8B%92%E7%BB%9D%E6%8E%88%E6%9D%83&state=af0ifjsldkj
+```
+
+| Parameter | Description |
+| :--- | :--- |
+| `error` | Error code. Common values: `access_denied` (user denied authorization), `invalid_request` (invalid request parameters) |
+| `error_description` | Human-readable error description (URL-encoded) |
+| `state` | The random string you passed when requesting authorization |
 
 ---
 
 ### Step 3: Exchange Code for Token
 
-Send a POST request to exchange `code` for an `access_token`:
+Once you have the `code`, your backend service (or a public client using PKCE) must send a POST request to the RollingGo token endpoint to exchange the `code` for an `access_token`.
 
-**Request Method**: `POST`  
-**Request URL**:
+**Method**: `POST`
+**Request URL** (choose based on your node):
 - **Mainland China**: `https://api.rollinggo.cn/oauth2/token`
-- **Overseas**: `https://api.rollinggo.ai/oauth2/token`
+- **Overseas, Hong Kong, Macao & Taiwan**: `https://api.rollinggo.ai/oauth2/token`
 
-**Content-Type**: `application/x-www-form-urlencoded`
+**Content-Type**: `application/x-www-form-urlencoded` (`application/json` is not supported)
 
-**Parameters**:
-- `grant_type`: `authorization_code`
-- `client_id`: your application client ID
-- `client_secret`: required for Confidential Clients (Web backends)
-- `code`: authorization code from Step 2
-- `redirect_uri`: matching Step 1
-- `code_verifier`: PKCE verifier string
+**Request Parameters (Body)**:
 
-**Successful Response** (HTTP 200):
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `grant_type` | String | **Yes** | Fixed value: `authorization_code` |
+| `client_id` | String | **Yes** | Your application's unique identifier ID (same as passed in Step 1) |
+| `client_secret` | String | Conditional | Only **confidential clients (e.g., web backends)** need to provide this parameter. Public clients (e.g., SPA, desktop apps) must not provide it and must use PKCE |
+| `code` | String | **Yes** | The authorization code obtained in Step 2 |
+| `redirect_uri` | String | **Yes** | Must **exactly match** the `redirect_uri` passed in Step 1 (including trailing slash and case) |
+| `code_verifier` | String | **Yes** | The original random string you used to generate `code_challenge` in Step 1 (43-128 characters). RollingGo will SHA256-hash it and compare with `code_challenge`; a mismatch results in token refusal |
+
+> **Note**: The `refresh_token` is only returned in the response when you use a **confidential client** (i.e., one configured with `client_secret`). Public clients do not receive a `refresh_token`.
+
+**Request Example (Curl, confidential client)**:
+```bash
+curl -X POST https://<API_DOMAIN>/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "client_id=your_client_id" \
+  -d "client_secret=your_client_secret" \
+  -d "code=SplxlOBeZQQYbYS6WxSbIA" \
+  -d "redirect_uri=https://your-app.com/callback" \
+  -d "code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+```
+
+**Request Example (Curl, public client + PKCE)**:
+```bash
+curl -X POST https://<API_DOMAIN>/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "client_id=your_client_id" \
+  -d "code=SplxlOBeZQQYbYS6WxSbIA" \
+  -d "redirect_uri=https://your-app.com/callback" \
+  -d "code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+```
+
+**Successful Response Example** (HTTP 200):
 ```json
 {
   "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0...",
@@ -91,18 +159,110 @@ Send a POST request to exchange `code` for an `access_token`:
 }
 ```
 
+**Response Parameter Description**:
+
+| Parameter | Description |
+| :--- | :--- |
+| `access_token` | The access token (JWT format). When using it, rely on the `expires_in` value in the response |
+| `token_type` | Fixed value: `Bearer`. Carry it in the HTTP header with the `Bearer ` prefix when making requests |
+| `expires_in` | Token lifetime in seconds. Use the value actually returned by the server |
+| `refresh_token` | The refresh token. **Only returned for confidential clients (configured with `client_secret`)**. Used to obtain a new `access_token` after the current one expires |
+| `scope` | The scopes actually granted (space-separated). May be fewer than requested (users can decline some permissions) |
+
+**Error Response Example** (HTTP 400):
+```json
+{
+  "error": "invalid_grant",
+  "error_description": "Authorization code expired, or was already used."
+}
+```
+
+| HTTP Status | Error Code | Common Causes |
+| :--- | :--- | :--- |
+| 400 Bad Request | `invalid_grant` | The authorization code has expired, was already used, or the `code_verifier` does not match the `code_challenge` |
+| 400 Bad Request | `invalid_client` | The `client_id` does not exist, is disabled, or the `client_secret` is incorrect |
+| 400 Bad Request | `invalid_request` | A required parameter is missing (e.g., `grant_type`, `code`, `redirect_uri`) |
+| 400 Bad Request | `unauthorized_client` | The client is not authorized to use this grant_type |
+| 401 Unauthorized | `invalid_client` | Confidential client authentication failed (when using `client_secret_basic`, the Base64-encoded credentials in the `Authorization` header are invalid) |
+
+> **Support & Contact**: If you encounter an invalid `client_id`, a `redirect_uri` mismatch, a lost `client_secret`, or any other configuration-related issue during integration, please contact your RollingGo Business Manager team for assistance.
+
 ---
 
-## 🛠️ How to Use the Access Token
+## 🛡️ Security Recommendation: PKCE (Required Reading)
 
-When connecting to the MCP Server, include the Bearer token in the handshake header:
+PKCE (Proof Key for Code Exchange) prevents the authorization code from being used after interception. For public clients without a backend — pure frontend apps (SPA), desktop, or mobile — **we strongly recommend using PKCE**, avoiding hardcoding `client_secret` in client code. Both Step 1 and Step 3 use the values generated below. How it works:
 
+1. **Generate `code_verifier`**: The client generates a high-entropy random string (43-128 characters, using only `[A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"`).
+2. **Compute `code_challenge`**: SHA256-hash the `code_verifier`, then Base64URL-encode it (without `=` padding).
+   ```javascript
+   // JavaScript example
+   const array = new Uint8Array(32);
+   crypto.getRandomValues(array);
+   const code_verifier = btoa(String.fromCharCode(...array))
+     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+   const encoder = new TextEncoder();
+   const data = encoder.encode(code_verifier);
+   const digest = await crypto.subtle.digest('SHA-256', data);
+   const code_challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+   ```
+3. **Request the authorization page (Step 1)**: Send `code_challenge` and `code_challenge_method=S256`.
+4. **Exchange the token (Step 3)**: Send the original `code_verifier` without `client_secret` (public clients). RollingGo performs the same SHA256 computation and compares; a mismatch results in token refusal.
+
+---
+
+## 🛠️ Using the Access Token (Accessing Protected Resources)
+
+Once you have the `access_token`, you can access the protected resources provided by RollingGo on behalf of the user, or connect to the MCP Server.
+
+Simply place the `access_token` in the `Authorization` HTTP header, prefixed with `Bearer ` (note the trailing space).
+
+### Scenario 1: Accessing REST API Resources (User Info)
+
+For example, access the user info endpoint `/userinfo`:
+
+**Request Example (Curl)**:
+```bash
+curl -X GET https://<API_DOMAIN>/userinfo \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0..."
+```
+
+**Successful Response Example** (HTTP 200):
+```json
+{
+  "sub": "user_123456",
+  "email": "user@example.com",
+  "email_verified": true,
+  "name": "Zhang San"
+}
+```
+
+### Scenario 2: Connecting to the MCP (Model Context Protocol) Service
+
+When your MCP client establishes an SSE or WebSocket connection with the RollingGo MCP Server, you must also include the authentication header in the initial HTTP request.
+
+- **Mainland China MCP Server**: `https://mcp.rollinggo.cn/mcp/hotel`
+- **Overseas, Hong Kong, Macao & Taiwan MCP Server**: `https://mcp.rollinggo.ai/mcp/hotel`
+
+**SSE Connection Example (Node.js/JS pseudocode)**:
+```javascript
+const headers = {
+  'Authorization': `Bearer ${access_token}`
+};
+
+// Send the request with the auth header
+const eventSource = new EventSource('https://<MCP_HOST>/mcp/hotel', { headers });
+```
+
+**MCP SDK Client Connection Example (TypeScript)**:
 ```typescript
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 
 const transport = new SSEClientTransport(
-  new URL("https://mcp.rollinggo.cn/mcp/hotel"),
+  new URL("https://<MCP_HOST>/mcp/hotel"),
   {
     headers: {
       "Authorization": `Bearer ${access_token}`
@@ -113,3 +273,169 @@ const transport = new SSEClientTransport(
 const client = new Client({ name: "my-app", version: "1.0.0" });
 await client.connect(transport);
 ```
+
+### Scenario 3: Refreshing the Token with `refresh_token`
+
+When the `access_token` expires, you can use the `refresh_token` to obtain a new `access_token` without requiring the user to sign in again.
+
+> **Applicability**: The `refresh_token` is only valid for **confidential clients (configured with `client_secret`)**. Public clients do not receive a `refresh_token`; for long-term access, go through the authorization flow again.
+
+**Method**: `POST`
+**Request URL** (choose based on your node):
+- **Mainland China**: `https://api.rollinggo.cn/oauth2/token`
+- **Overseas, Hong Kong, Macao & Taiwan**: `https://api.rollinggo.ai/oauth2/token`
+
+**Request Parameters (Body)**:
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `grant_type` | String | **Yes** | Fixed value: `refresh_token` |
+| `client_id` | String | **Yes** | Your application's unique identifier ID |
+| `client_secret` | String | Conditional | Confidential clients must provide it |
+| `refresh_token` | String | **Yes** | The refresh_token obtained in Step 3 |
+
+**Request Example (Curl)**:
+```bash
+curl -X POST https://<API_DOMAIN>/oauth2/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "client_id=your_client_id" \
+  -d "client_secret=your_client_secret" \
+  -d "refresh_token=tIh2Cv_lVz2qHwL3nR5kXpJmYbNcTdEfGhIjKlMnOpQrStUvWx"
+```
+
+**Successful Response Example**:
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "aB3cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3wX4yZ5...",
+  "scope": "openid email profile hotel:order:read"
+}
+```
+
+> **Important**: After using the `refresh_token`, the response may include a new `refresh_token`. Rely on the actual response and securely store the new `refresh_token` each time.
+
+### Scenario 4: Revoking a Token
+
+When the user signs out or you need to invalidate a token, call the revocation endpoint.
+
+**Method**: `POST`
+**Request URL** (choose based on your node):
+- **Mainland China**: `https://api.rollinggo.cn/oauth2/revoke`
+- **Overseas, Hong Kong, Macao & Taiwan**: `https://api.rollinggo.ai/oauth2/revoke`
+
+**Request Parameters (Body)**:
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `token` | String | **Yes** | The access_token or refresh_token to revoke |
+| `token_type_hint` | String | Optional | Hints the token type: `access_token` or `refresh_token`. Helps speed up processing |
+
+**Request Example (Curl)**:
+```bash
+curl -X POST https://<API_DOMAIN>/oauth2/revoke \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0..." \
+  -d "token_type_hint=access_token"
+```
+
+**Successful Response**: HTTP 200 (empty response body)
+
+### Scenario 5: Token Introspection
+
+Used to verify whether a token is valid and to obtain its metadata (for resource server-side validation).
+
+**Method**: `POST`
+**Request URL** (choose based on your node):
+- **Mainland China**: `https://api.rollinggo.cn/oauth2/introspect`
+- **Overseas, Hong Kong, Macao & Taiwan**: `https://api.rollinggo.ai/oauth2/introspect`
+
+**Request Parameters (Body)**:
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `token` | String | **Yes** | The access_token or refresh_token to validate |
+
+**Request Example (Curl)**:
+```bash
+curl -X POST https://<API_DOMAIN>/oauth2/introspect \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "token=eyJhbGciOiJSUzI1NiIsImtpZCI6InRyYXZlbHBvcnRhbC1hdXRoIn0..."
+```
+
+**Successful Response Example** (when the token is valid):
+```json
+{
+  "active": true,
+  "scope": "openid email profile hotel:order:read",
+  "client_id": "your_client_id",
+  "sub": "user_123456",
+  "exp": 1700000000,
+  "iat": 1699996400,
+  "iss": "https://api.rollinggo.cn"
+}
+```
+
+**Response When the Token Is Invalid**:
+```json
+{
+  "active": false
+}
+```
+
+---
+
+## 📋 Appendix: Basic Information (Reference)
+
+> This appendix is for manual configuration and troubleshooting. Normal integration does not require reading it. RollingGo provides the standard OAuth 2.0 / OpenID Connect service discovery mechanism. Developers can directly request the following endpoints to automatically obtain all configurations supported by the authorization server (including endpoint URLs, supported scopes, signing algorithms, etc.):
+
+- **OAuth 2.0 Discovery Endpoint**: `https://<API_DOMAIN>/.well-known/oauth-authorization-server`
+- **OIDC Discovery Endpoint**: `https://<API_DOMAIN>/.well-known/openid-configuration`
+
+### Core Endpoint Overview
+
+| Endpoint | Mainland China | Overseas, Hong Kong, Macao & Taiwan |
+| :--- | :--- | :--- |
+| Authorization | `https://api.rollinggo.cn/oauth2/authorize` | `https://api.rollinggo.ai/oauth2/authorize` |
+| Token | `https://api.rollinggo.cn/oauth2/token` | `https://api.rollinggo.ai/oauth2/token` |
+| Device Authorization | `https://api.rollinggo.cn/oauth2/device_authorization` | `https://api.rollinggo.ai/oauth2/device_authorization` |
+| Userinfo | `https://api.rollinggo.cn/userinfo` | `https://api.rollinggo.ai/userinfo` |
+| End Session | `https://api.rollinggo.cn/connect/logout` | `https://api.rollinggo.ai/connect/logout` |
+| JWKS URI | `https://api.rollinggo.cn/oauth2/jwks` | `https://api.rollinggo.ai/oauth2/jwks` |
+| Revocation | `https://api.rollinggo.cn/oauth2/revoke` | `https://api.rollinggo.ai/oauth2/revoke` |
+| Introspection | `https://api.rollinggo.cn/oauth2/introspect` | `https://api.rollinggo.ai/oauth2/introspect` |
+| MCP Server | `https://mcp.rollinggo.cn/mcp/hotel` | `https://mcp.rollinggo.ai/mcp/hotel` |
+
+### Supported Scopes
+
+| Scope | Description | User Consent Required |
+| :--- | :--- | :--- |
+| `openid` | Get the user's unique identifier (sub) | Yes |
+| `email` | Get the user's email address and verification status | Yes |
+| `phone` | Get the user's phone number | Yes |
+| `profile` | Get basic information such as the user's name | Yes |
+| `hotel:order:read` | Query hotel orders | Yes |
+| `hotel:order:book` | Book hotels and complete payment confirmation | Yes |
+| `hotel:order:cancel` | Cancel hotel orders | Yes |
+
+> The scope list above exactly matches the `scopes_supported` returned by the authorization server's `.well-known/oauth-authorization-server` endpoint.
+
+> **Note**: When requesting write-operation scopes such as `hotel:order:book` and `hotel:order:cancel`, the consent page explicitly informs the user that the app will perform these operations on their behalf. Users may decline some scopes.
+
+### Server Capability Summary
+
+Based on the actual configuration returned by the service discovery endpoints, the RollingGo authorization server supports the following capabilities:
+
+| Capability | Support |
+| :--- | :--- |
+| Response types | `code` (authorization code flow only) |
+| Grant types | `authorization_code`, `client_credentials`, `refresh_token`, `urn:ietf:params:oauth:grant-type:device_code`, `urn:ietf:params:oauth:grant-type:token-exchange` |
+| PKCE challenge methods | `S256` |
+| Client authentication methods | `client_secret_basic`, `client_secret_post`, `client_secret_jwt`, `private_key_jwt`, `tls_client_auth`, `self_signed_tls_client_auth` |
+| ID Token signing algorithms | RS256 |
+| DPoP signing algorithms | RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512 |
+| TLS client certificate binding | Supported |
+
+> The content in this table is derived from the actual configuration returned by the authorization server's `.well-known/oauth-authorization-server` and `.well-known/openid-configuration` endpoints. Beyond the authorization code flow demonstrated in this document, if you need to use flows such as `device_code` or `token-exchange`, please contact your onboarding Business Manager for the corresponding integration instructions.
