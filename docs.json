@@ -63,7 +63,12 @@
                   "developer-insights/mcp-client-config",
                   "developer-insights/developer-insights-mcp-auth-comparison"
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "tab": "Changelog",
+            "groups": [
               {
                 "group": "Changelog & Updates",
                 "pages": [
@@ -108,7 +113,12 @@
                   "zh/developer-insights/mcp-client-config",
                   "zh/developer-insights/developer-insights-mcp-auth-comparison"
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "tab": "更新日志",
+            "groups": [
               {
                 "group": "版本更新日志",
                 "pages": [
