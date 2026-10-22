@@ -1,0 +1,129 @@
+---
+title: "MCP Service Changelog"
+sidebarTitle: "MCP Updates"
+description: "Release notes and feature updates for RollingGo Hotel MCP service."
+icon: "network-wired"
+---
+
+# RollingGo Hotel MCP Service Changelog
+
+RollingGo Hotel MCP service follows strict Semantic Versioning, providing high-availability, multi-protocol hotel supply chain infrastructure for AI Agents, developers, and platform partners.
+
+---
+
+## v2.9 (2026-10-22)
+
+### 🚀 Core Update: Stateless Search Pagination Mechanism
+
+* **Stateless Pagination Token (`nextPageToken`)**:
+  * Added `nextPageToken` in `searchHotels` response. Callers can pass this token in multi-turn conversations when requesting "next batch" or pagination to explore candidate hotels continuously.
+* **Dynamic Page Size (`size`)**:
+  * Supports custom hotel count per page (default: 5, flexibly configurable from 1 to 10).
+* **Anti-Drift Parameter Snapshot**:
+  * Paged requests automatically inherit the initial query's destination, dates, stars, and price filters, preventing LLM parameter drift during multi-turn interactions.
+* **Incremental Availability Probing**:
+  * The server utilizes real-time incremental probing, returning immediately upon matching target inventory, significantly reducing multi-turn pagination latency.
+
+---
+
+## v2.8 (2026-10-16)
+
+### 💳 Core Update: Multi-Platform Checkout & Payment Routing
+
+* **Mutually Exclusive Payment Payload by Host Environment**:
+  * Returns **`paymentUrl`** (Web checkout string) for web and browser environments.
+  * Returns **`miniProgramPayInfo`** (Native checkout object) for WeChat Mini Program or mobile native environments.
+  * Strictly mutually exclusive based on host environment, eliminating payload confusion.
+* **Safe Nulling for Non-Pending States**:
+  * For orders that are confirmed, cancelled, or expired past the 30-minute window, the payment field is safely set to `null` to prevent broken navigation.
+* **Standardized Payment Tools**:
+  * Synchronously upgraded `createHotelBookingWithPaymentURL`, `getHotelOrderDetail`, and `searchHotelOrders` to maintain uniform payment data structures.
+
+---
+
+## v2.7 (2026-09-20)
+
+### 🔄 Core Update: Two-Phase Post-Booking Order Cancellation
+
+* **Added Dedicated Cancellation Tools**:
+  * Added **`preCancelHotelBooking`** (pre-cancellation & penalty calculation) to obtain a 10-minute valid token `confirmId`.
+  * Added **`confirmCancelHotelBooking`** (confirm & execute cancellation), requiring a valid `confirmId` to prevent accidental cancellations.
+* **Lightweight Cancellation for Unpaid Orders**:
+  * Unpaid orders (`Booked`) can be directly cancelled within seconds without redundant downstream calls.
+* **Multi-Language Policy Output**:
+  * Cancellation policies and guidance natively support English, Chinese, and Japanese dynamic adaptation.
+
+---
+
+## v2.6 (2026-08-24)
+
+### 🌍 Core Update: Multi-Currency, Multi-Language & Room Filters
+
+* **Standardized International Parameters (`localeParam`)**:
+  * Global endpoints natively support `localeParam: { currency, language }`, supporting 25+ global currencies (USD, EUR, JPY, GBP, HKD, etc.).
+* **Advanced Room Filtering (`filter`)**:
+  * `getHotelDetail` supports free cancellation (`cancelPolicy`) and breakfast included (`mealType`) filtering to match user preferences precisely.
+* **Cleaned Deprecated Parameters**:
+  * Completely cleaned legacy fields for a cleaner API contract.
+
+---
+
+## v2.5 (2026-08-14)
+
+### 📲 Core Update: Multi-Channel Booking Landing Support
+
+* **Flexible Landing Formats (`miniProgramInfo`)**:
+  * Added mini-program parameters in room details, supporting Web H5, WeChat Mini Program, and native App landing options.
+* **Zero-Breaking Backward Compatibility**:
+  * Channels without custom configs automatically default to standard H5 URLs.
+
+---
+
+## v2.4 (2026-07-27)
+
+### 🖼️ Core Update: Rich Media & Overseas Hotel Coverage
+
+* **Room Primary Image & Gallery**:
+  * `getHotelDetail` includes high-definition room cover images and room galleries.
+* **Expanded Global Inventory**:
+  * Further expanded coverage across Asia-Pacific, Europe, and North America.
+
+---
+
+## v2.3 (2026-07-23)
+
+### 🔐 Core Update: OAuth 2.0 Authorization Code Flow in Production
+
+* **RFC 6749 Standard Implementation**:
+  * Released enterprise-ready OAuth 2.0 authorization server with full token lifecycle management.
+* **Full In-Agent Closed-Loop Booking**:
+  * Equipped enterprise agents with the full 7-tool suite for closed-loop in-agent transactions.
+
+---
+
+## v2.2 (2026-07-03)
+
+### ⏱️ Core Update: Real-Time Price Confirmation & Profile Prefill
+
+* **`hotelPriceConfirm` Lock Mechanism**:
+  * Introduced 15-minute price lock protection during checkout.
+* **Multi-Room Guest Profile Prefill**:
+  * Supported multi-room allocation and guest profile pre-population.
+
+---
+
+## v2.1 (2026-06-29)
+
+### 📍 Core Update: Structured Location Resolution
+
+* **Multi-Dimensional Place Resolution**:
+  * `searchHotels` enhanced with structured recognition for cities, airports, transit hubs, and landmarks.
+
+---
+
+## v2.0 (2026-06-14)
+
+### 🎉 Core Update: RollingGo Hotel MCP 2.0 Official Release
+
+* **Full-Flow Hotel Suite**:
+  * Released standardized MCP suite covering Search (`searchHotels`), Room Details (`getHotelDetail`), Price Lock (`hotelPriceConfirm`), and Booking (`createHotelBookingWithPaymentURL`).

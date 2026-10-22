@@ -72,8 +72,11 @@
             "tab": "Changelog",
             "groups": [
               {
-                "group": "Changelog & Updates",
-                "pages": []
+                "group": "Release Notes",
+                "pages": [
+                  "changelog/mcp",
+                  "changelog/website"
+                ]
               }
             ]
           }
@@ -137,8 +140,11 @@
             "tab": "更新日志",
             "groups": [
               {
-                "group": "版本更新日志",
-                "pages": []
+                "group": "版本发布记录",
+                "pages": [
+                  "zh/changelog/mcp",
+                  "zh/changelog/website"
+                ]
               }
             ]
           }
