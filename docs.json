@@ -177,5 +177,17 @@
     "socials": {
       "x": "https://x.com/rollinggo"
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/en",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/en/:path*",
+      "destination": "/:path*",
+      "permanent": true
+    }
+  ]
 }
