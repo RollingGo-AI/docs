@@ -95,7 +95,7 @@ if (resp.miniProgramInfo && resp.miniProgramInfo.type === "H5_TO_MINIAPP") {
   "checkOut": "2026-08-13",
   "miniProgramInfo": {
     "type": "APP_TO_MINIAPP",
-    "url": "weixin://dl/business/?appid=wx1234567890abcdef&path=pages/hotel/detail/index&query=id%3D102906%26checkInDate%3D2026-08-12%26checkOutDate%3D2026-08-13%26roomCount%3D1%26adultCount%3D1%26childCount%3D0%26childAgeDetails%3D%26utm_source%3DfusionAI-2026"
+    "url": "weixin://dl/business/?appid=wx_SAMPLE_APP_ID&path=pages/hotel/detail/index&query=id%3D102906%26checkInDate%3D2026-08-12%26checkOutDate%3D2026-08-13%26roomCount%3D1%26adultCount%3D1%26childCount%3D0%26childAgeDetails%3D%26utm_source%3DfusionAI-2026"
   },
   "roomRatePlans": [ ... ],
   "message": "搜索成功"
@@ -138,7 +138,7 @@ window.location.href = resp.miniProgramInfo.url;
   "checkOut": "2026-08-13",
   "miniProgramInfo": {
     "type": "MINIAPP_TO_MINIAPP",
-    "appId": "wx1234567890abcdef",
+    "appId": "wx_SAMPLE_APP_ID",
     "path": "pages/hotel/detail/index",
     "query": "id=102906&checkInDate=2026-08-12&checkOutDate=2026-08-13&roomCount=1&adultCount=1&childCount=0&childAgeDetails=&utm_source=fusionAI-2026"
   },
@@ -178,7 +178,7 @@ onBookingTap() {
 
 ## 6. 方案选择建议
 
-```
+```text
 [用户入口在哪里？]
    │
    ├─ 小程序内（web-view 或原生页）───────► 方案 C：MINIAPP_TO_MINIAPP（推荐）
