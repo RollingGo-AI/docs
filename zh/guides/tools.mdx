@@ -18,42 +18,6 @@ icon: "toolbox"
 | 8 | **`preCancelHotelBooking`** | ❌ | ✅ | **两阶段预取消试算**：试算取消罚金，派发 10 分钟有效的凭证 `confirmId` |
 | 9 | **`confirmCancelHotelBooking`** | ❌ | ✅ | **两阶段确认取消执行**：携带 `confirmId` 执行不可逆取消并原路退款 |
 
----
-
-> **更新日期**：2026-10-16
-> **适用环境**：生产环境（正式上线）
-> **Tool 数量**：9 个
-> **服务端点**：
-> • **API Key 模式**：国内版 `https://mcp.rollinggo.cn/mcp` / 国际版 `https://mcp.rollinggo.ai/mcp`
-> • **OAuth 2.1 模式**：国内版 `https://mcp.rollinggo.cn/mcp/hotel` / 国际版 `https://mcp.rollinggo.ai/mcp/hotel`
->
-> 💡 **国内版 (`cn`) vs 国际版 (`ai`) 核心字段差异说明**：
->
-> 1. **国际化参数 (`localeParam`)**：仅**国际版**在搜索、查价、锁价接口中支持 `localeParam: { currency, language }`（默认 `USD`，支持 25 种货币；默认 `en`，支持 `en`/`zh`/`ja`）；**国内版**固定为中文（`zh-CN`）与人民币（`CNY`），无需且不支持传入 `localeParam`。
-> 2. **地点类型枚举 (`placeType`)**：国内版使用中文枚举（如 `城市`、`机场`、`景点`、`酒店` 等）；国际版使用英文枚举（如 `city`、`airport`、`point_of_interest`、`hotel` 等）。
-> 3. **废弃字段**：两版均已废弃并移除 `countryCode` 与 `nationality`。
-> 4. **联系人邮箱约束 (`contact.email`)**：国内版为 **必填**；国际版为 **非必填**（仅需 `firstName`, `lastName`）。
-> 5. **房型筛选 (`filter`)**：两版均完整支持。
-> 6. **订单取消工具 (`preCancelHotelBooking` / `confirmCancelHotelBooking`)**：两版参数结构与两阶段安全取消机制完全一致，原生支持多语言文案。
-> 7. **支付凭证与原生收银适配 **：创单（`createHotelBookingWithPaymentURL`）、查单（`getHotelOrderDetail`）及列表（`searchHotelOrders`）支持两种支付字段形态：**`paymentUrl`**（Web 链接类支付）与 **`miniProgramPayInfo`**（微信小程序类支付）。系统根据接入环境二选一互斥返回（仅展示当前环境对应字段，彻底隐藏另一个字段）；非待支付状态（已支付、已取消、超时失效）统一返回 `null`。
-
----
-
-## 目录
-
-- [1. getHotelSearchTags — 获取搜索标签](#1-gethotelsearchtags--获取搜索标签)
-- [2. searchHotels — 搜索全球酒店](#2-searchhotels--搜索全球酒店)
-- [3. getHotelDetail — 获取酒店详情与房型报价](#3-gethoteldetail--获取酒店详情与房型报价)
-- [4. hotelPriceConfirm — 价格确认与锁价](#4-hotelpriceconfirm--价格确认与锁价)
-- [5. createHotelBookingWithPaymentURL — 创建酒店订单](#5-createhotelbookingwithpaymenturl--创建酒店订单)
-- [6. searchHotelOrders — 查询订单列表](#6-searchhotelorders--查询订单列表)
-- [7. getHotelOrderDetail — 查询订单详情](#7-gethotelorderdetail--查询订单详情)
-- [8. preCancelHotelBooking — 预取消订单与罚金试算](#8-precancelhotelbooking--预取消订单与罚金试算)
-- [9. confirmCancelHotelBooking — 确认并执行订单取消](#9-confirmcancelhotelbooking--确认并执行订单取消)
-- [10. 统一错误码与异常映射](#10-统一错误码与异常映射)
-
----
-
 ## 1. getHotelSearchTags — 获取搜索标签
 
 ### 功能说明
@@ -613,8 +577,3 @@ icon: "toolbox"
 | `6207`          |    400    | `CONFIRM_ID_EXPIRED`     | 取消确认凭证已过期（超过 10 分钟） | 引导重新调用`preCancelHotelBooking` 获取新凭证 |
 | `6301`          |    400    | `BOOKING_NON_CANCELABLE` | 订单按规则无法在线取消             | 展示 message 中的客服电话及邮箱，引导联系人工    |
 | `6302`          |    502    | `SUPPLIER_CANCEL_FAILED` | 上游供应商取消异常                 | 建议稍后重试或联系客服协助处理                   |
-
----
-
-*文档维护：RollingGo 开放平台技术团队*
-*最新更新日期：2026-10-16*
