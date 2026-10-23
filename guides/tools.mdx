@@ -20,37 +20,6 @@ icon: "toolbox"
 
 ---
 
-> **Last Updated**: 2026-10-16  
-> **Environment**: Production (Active)  
-> **Tool Count**: 9 Tools  
-> **Service Endpoints**:  
-> • **API Key Mode**: China `https://mcp.rollinggo.cn/mcp` / Global `https://mcp.rollinggo.ai/mcp`  
-> • **OAuth 2.1 Mode**: China `https://mcp.rollinggo.cn/mcp/hotel` / Global `https://mcp.rollinggo.ai/mcp/hotel`  
-> 
-> 💡 **China (`cn`) vs Global (`ai`) Core Differences**:
-> 1. **Localization Package (`localeParam`)**: Only supported on **Global (`ai`)** endpoints (`localeParam: { currency, language }`, default `USD`, 25 currencies; default `en`, supports `en`/`zh`/`ja`). **China (`cn`)** endpoint is fixed to `zh-CN` and `CNY` (omit `localeParam`).
-> 2. **Place Type Enum (`placeType`)**: China endpoint uses Chinese enums (`城市`, `机场`, `景点`, `酒店`, etc.); Global endpoint uses English enums (`city`, `airport`, `point_of_interest`, `hotel`, etc.).
-> 3. **Deprecated Fields**: Both editions have fully removed `countryCode` and `nationality`.
-> 4. **Contact Email (`contact.email`)**: **Required** for China edition; **Optional** for Global edition (Global requires only `firstName` and `lastName`).
-> 5. **Rate Plan Filter (`filter`)**: Fully supported on both China and Global endpoints.
-> 6. **Order Cancellation Tools (`preCancelHotelBooking` / `confirmCancelHotelBooking`)**: Parameter structures and two-phase safety mechanisms are identical across both editions with native multilingual feedback.
-
----
-
-## Table of Contents
-- [1. getHotelSearchTags — Fetch Search Tags](#1-gethotelsearchtags--fetch-search-tags)
-- [2. searchHotels — Search Hotels Worldwide](#2-searchhotels--search-hotels-worldwide)
-- [3. getHotelDetail — Get Hotel Details & Room Rate Plans](#3-gethoteldetail--get-hotel-details--room-rate-plans)
-- [4. hotelPriceConfirm — Real-Time Price Verification & Locking](#4-hotelpriceconfirm--real-time-price-verification--locking)
-- [5. createHotelBookingWithPaymentURL — Create Order with Payment URL](#5-createhotelbookingwithpaymenturl--create-order-with-payment-url)
-- [6. searchHotelOrders — Query Hotel Orders List](#6-searchhotelorders--query-hotel-orders-list)
-- [7. getHotelOrderDetail — Query Hotel Order Detail](#7-gethotelorderdetail--query-hotel-order-detail)
-- [8. preCancelHotelBooking — Pre-Cancel Booking & Penalty Quote](#8-precancelhotelbooking--pre-cancel-booking--penalty-quote)
-- [9. confirmCancelHotelBooking — Confirm & Execute Cancellation](#9-confirmcancelhotelbooking--confirm--execute-cancellation)
-- [10. Unified Error Codes & Exception Mapping](#10-unified-error-codes--exception-mapping)
-
----
-
 ## 1. getHotelSearchTags — Fetch Search Tags
 
 ### Description
