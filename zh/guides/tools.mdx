@@ -69,7 +69,8 @@ icon: "toolbox"
 | `hotelTags.requiredTags`        | string[] | ❌   | —                          | 必须满足的硬性条件标签列表                                                                                                                                                                                                                                                                                   |
 | `hotelTags.preferredBrands`     | string[] | ❌   | —                          | 连锁品牌名称偏好列表                                                                                                                                                                                                                                                                                         |
 | `hotelTags.maxPricePerNight`    | float    | ❌   | —                          | 每房每晚的预算本币价格上限（按所传 currency 币种理解）                                                                                                                                                                                                                                                       |
-| `size`                          | integer  | ❌   | `5`                       | 返回的酒店数量限制（最大`20`） [format: int32]                                                                                                                                                                                                                                                             |
+| `size` | integer | ❌ | `5` | 返回的酒店数量限制（默认`5`，最大不超过`10`），翻页时按当次请求动态生效 [format: int32] |
+| `nextPageToken` | string | ❌ | `null` | 分页游标。仅当获取下一页（“换一批”）时，原样回传上一页返回的 `nextPageToken`；首页查询不传。传入有效 Token 时，核心检索条件以 Token 内快照为准 |
 
 ### Output 输出
 
@@ -79,6 +80,7 @@ icon: "toolbox"
 | :----------------------- | :------ | :------- | :------------------------- |
 | `success`              | boolean | ❌ 否    | 查询是否成功               |
 | `message`              | string  | ❌ 否    | 业务层处理反馈消息         |
+| `nextPageToken` | string/null | ✅ 是 | 下一页分页游标。存在更多候选酒店且未达翻页上限时返回加密串；候选池查完或达到探测上限时返回 `null` |
 | `hotelInformationList` | array   | ❌ 否    | 符合筛选要求的酒店对象列表 |
 
 #### hotelInformationList[] 酒店数据结构

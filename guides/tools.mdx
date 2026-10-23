@@ -68,7 +68,8 @@ Performs an initial global hotel search within a specified area based on filter 
 | `hotelTags.requiredTags` | string[] | ❌ | — | List of hard-requirement tags that must be matched |
 | `hotelTags.preferredBrands` | string[] | ❌ | — | Preferred chain brand names |
 | `hotelTags.maxPricePerNight` | float | ❌ | — | Per-room-per-night budget cap in specified settlement currency |
-| `size` | integer | ❌ | `5` | Maximum number of hotels to return (max `20`) [format: int32] |
+| `size` | integer | ❌ | `5` | Maximum number of hotels to return (default `5`, max `10`), dynamically applied per page on pagination [format: int32] |
+| `nextPageToken` | string | ❌ | `null` | Pagination cursor. Only pass back the `nextPageToken` returned by the previous page when fetching the next batch ("show another batch"); omit it for the first search. When a valid token is provided, core search criteria are taken from the token snapshot |
 
 ### Output
 
@@ -77,6 +78,7 @@ Performs an initial global hotel search within a specified area based on filter 
 |:---|:---|:---|:---|
 | `success` | boolean | ❌ No | Whether the search succeeded |
 | `message` | string | ❌ No | Business-layer processing feedback message |
+| `nextPageToken` | string/null | ✅ Yes | Next-page pagination cursor. Returns an encrypted token string when more candidates are available; returns `null` when the candidate pool is exhausted or the probing limit is reached |
 | `hotelInformationList` | array | ❌ No | List of hotel objects matching the filter criteria |
 
 #### hotelInformationList[] Hotel Data Structure
