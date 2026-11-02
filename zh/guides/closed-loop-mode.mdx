@@ -21,7 +21,7 @@ icon: "arrows-rotate"
 
 端内闭环模式包含 6 个核心交互阶段：
 
-```
+```text
 [阶段一: 搜索与筛选]  -->  [阶段二: 验价与锁价]  -->  [阶段三: 生单与收银台]
       searchHotels            hotelPriceConfirm       createHotelBookingWithPaymentURL
       getHotelDetail
@@ -36,7 +36,7 @@ icon: "arrows-rotate"
 
 ### 第一阶段：多条件搜索与房型精准筛选
 
-用户提出住宿需求后，智能体依次调用 `searchHotels` 与 `getHotelDetail`：
+用户提出住宿需求后，智能体依次调用 `searchHotels` 与 `getHotelDetail`（查询酒店设施或政策可调用 `getHotelStaticInfo`）：
 
 1. **`searchHotels`**：通过目的地、地标、星级、价格区间进行初筛；
 2. **`getHotelDetail`**：支持服务端精准过滤（如 `filter: { mealType: "DOUBLE_BREAKFAST", cancelable: "CANCELABLE" }`），直接返回符合条件的房型套餐 (`roomRatePlans`)，无需大模型自行遍历处理。

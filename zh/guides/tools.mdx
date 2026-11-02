@@ -17,6 +17,7 @@ icon: "toolbox"
 | 7 | **`getHotelOrderDetail`** | ❌ | ✅ | 查询单笔订单完整详情（含入离凭证号、物理地址、导航坐标、联系电话） |
 | 8 | **`preCancelHotelBooking`** | ❌ | ✅ | **两阶段预取消试算**：试算取消罚金，派发 10 分钟有效的凭证 `confirmId` |
 | 9 | **`confirmCancelHotelBooking`** | ❌ | ✅ | **两阶段确认取消执行**：携带 `confirmId` 执行不可逆取消并原路退款 |
+| 10 | **`getHotelStaticInfo`** | ✅ | ✅ | 查询酒店静态信息（基础信息、位置、政策、设施、图片、标签），支持 `categories` 过滤 |
 
 ## 1. getHotelSearchTags — 获取搜索标签
 
@@ -569,13 +570,164 @@ icon: "toolbox"
 
 ---
 
-## 10. 统一错误码与异常映射
+## 10. getHotelStaticInfo — 酒店静态信息查询
 
-| 错误码 (`code`) | HTTP 状态 | 错误枚举                   | 场景说明                           | 客户端 / Agent 应对建议                          |
-| :---------------- | :-------: | :------------------------- | :--------------------------------- | :----------------------------------------------- |
-| `2000`          |    200    | `SUCCESS`                | 操作成功                           | 正常渲染成功状态与文案                           |
-| `6001`          |    403    | `BOOKING_FORBIDDEN`      | 订单不存在或不属于当前登录用户     | 提示用户核对订单号                               |
-| `6201`          |    400    | `PRICE_CONFIRM_FAILED`   | 房型验价失败/房间已售罄            | 引导用户重新搜索可用房型                         |
-| `6207`          |    400    | `CONFIRM_ID_EXPIRED`     | 取消确认凭证已过期（超过 10 分钟） | 引导重新调用`preCancelHotelBooking` 获取新凭证 |
-| `6301`          |    400    | `BOOKING_NON_CANCELABLE` | 订单按规则无法在线取消             | 展示 message 中的客服电话及邮箱，引导联系人工    |
-| `6302`          |    502    | `SUPPLIER_CANCEL_FAILED` | 上游供应商取消异常                 | 建议稍后重试或联系客服协助处理                   |
+### 功能说明
+
+查询酒店静态信息，包括基础信息、位置坐标、服务政策、设施、图片及标签。支持通过 `categories` 参数按需获取指定分类。
+
+- **操作特性**：`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`
+
+### Input 参数（全部字段 📋）
+
+_`hotelId` 与 `name` 至少提供一个；同时提供时优先按 `hotelId` 查询。_
+
+| 参数名 | 类型 | 必填 | 默认值 | 说明 |
+| :-- | :-- | :-: | :-: | :-- |
+| `hotelId` | integer | ⚠️ 二选一\* | — | 酒店唯一数字 ID（精确检索优先） [format: int32] |
+| `name` | string | ⚠️ 二选一\* | — | 酒店名称（支持模糊匹配，`hotelId` 未知时使用） |
+| `categories` | array[string] | ❌ | `["all"]` | **按需分类投影过滤数组**。可选枚举：<br />• `"basic"`: 基础信息（中英文名、品牌、星级、图文描述、电话、国家、城市）<br />• `"location"`: 位置坐标（详细地址、经纬度、商圈）<br />• `"policy"`: 服务政策（入离时间、全量政策说明、政策要点列表）<br />• `"facilities"`: 酒店设施（扁平字符串数组，如免费WiFi、停车场、健身房等）<br />• `"images"`: 精选媒资图片（最多 5 张，首图带 `isDefault` 标识）<br />• `"tags"`: 酒店特色标签列表<br />• `"all"`: 返回全部 6 大分类节点（默认值） |
+| `localeParam` | object | ❌ | — | **【仅国际版支持】** 语言偏好包（国内版固定纯中文，无需传入此参数） |
+| `localeParam.language` | string | ❌ | `"en"` | **【仅国际版支持】** 语言代码。支持枚举：`"en"`（英文，默认）、`"zh"`（中文）、`"ja"`（日文） |
+
+### Output 输出
+
+#### 顶层返回字段
+
+| 字段 | 类型 | 能否为空 | 说明 |
+| :-- | :-- | :-: | :-- |
+| `success` | boolean | ❌ 否 | 接口是否执行成功 |
+| `code` | integer | ❌ 否 | 业务状态码（`2000` 表示成功，`6000` 表示参数错误或未查到酒店） |
+| `message` | string | ❌ 否 | 状态描述信息 |
+| `hotelStaticInfo` | object | ✅ 是 | 酒店静态信息核心载荷（失败或未匹配到时为 null） |
+
+#### hotelStaticInfo 完整子字段结构（6 大分类节点）
+
+| 所属模块 | 字段 | 类型 | 能否为空 | 说明 |
+| :-- | :-- | :-- | :-: | :-- |
+| **`basic`** | `name` | string | ❌ 否 | 酒店名称（依据语言环境本地化） |
+|  | `nameEn` | string | ❌ 否 | 酒店英文官方名称（无英文时返回拼音或空串） |
+|  | `brand` | string | ✅ 是 | 酒店所属品牌（单体独立酒店可能为 null 或不返回） |
+|  | `starRating` | number | ❌ 否 | 酒店星级（1.0 ~ 5.0） |
+|  | `description` | string | ❌ 否 | 官方介绍富文本（HTML 格式） |
+|  | `phone` | string | ❌ 否 | 酒店前台联系电话 |
+|  | `country` | string | ❌ 否 | 所在国家（如 `"中国"`、`"新加坡"`、`"日本"` 等） |
+|  | `city` | string | ✅ 是 | 所在城市（如 `"北京"`、`"东京"`；若数据源未单独提供城市名则优先从 location 中补充） |
+| **`location`** | `address` | string | ❌ 否 | 详细物理地址 |
+|  | `latitude` | double | ❌ 否 | WGS-84 标准纬度坐标 |
+|  | `longitude` | double | ❌ 否 | WGS-84 标准经度坐标 |
+|  | `businessDistrict` | string | ✅ 是 | 所处商圈名称（无商圈时可能为 null 或空串） |
+| **`policy`** | `description` | string | ❌ 否 | 全量政策富文本 HTML（包含入住限制、儿童年龄、宠物、证件、加床及押金等） |
+|  | `checkinFrom` | string | ❌ 否 | 最早入住办理时间（如 `"14:00"` 或 `"14:00:00"`） |
+|  | `checkoutTo` | string | ❌ 否 | 最晚离店退房时间（如 `"12:00"` 或 `"12:00:00"`） |
+|  | `extraInfoList` | array[object] | ❌ 否 | 细分政策要点列表（包含 `{type, description, value}`；无内容时返回 `[]`） |
+|  | `extraInfoList[].type` | string | ❌ 否 | 政策类型（如 `"deposit"`, `"notice"`, `"CheckInOut"`, `"Child"`） |
+|  | `extraInfoList[].description` | string | ❌ 否 | 政策项名称/说明 |
+|  | `extraInfoList[].value` | string | ❌ 否 | 细分政策文本值 |
+| **`facilities`** | — | array[string] | ❌ 否 | 扁平化设施名称列表（如 `["免费WiFi", "免费停车场", "健身室", "电梯"]`） |
+| **`images`** | — | array[object] | ❌ 否 | **精选媒资图片列表，系统严格限制最多返回 5 张** |
+|  | `url` | string | ❌ 否 | 图片 CDN 高清地址 |
+|  | `isDefault` | boolean | ❌ 否 | **是否默认主图**。`true` 代表主图（第一张），其余为 `false` |
+| **`tags`** | — | array[string] | ❌ 否 | 酒店特色标签列表（如 `["地铁周边", "亲子酒店", "商务出行"]`） |
+
+#### 输出示例 ①：全量返回（默认或 `categories: ["all"]`）
+
+```json
+{
+  "success": true,
+  "code": 2000,
+  "message": "酒店静态信息获取成功",
+  "hotelStaticInfo": {
+    "basic": {
+      "name": "北京国贸大酒店",
+      "nameEn": "China World Summit Wing, Beijing",
+      "brand": "香格里拉 (Shangri-La)",
+      "starRating": 5.0,
+      "description": "<p>北京国贸大酒店位于中央商务区核心地带...</p>",
+      "phone": "+86 10 8571 6688",
+      "country": "中国",
+      "city": "北京"
+    },
+    "location": {
+      "address": "建国门外大街1号国贸大厦",
+      "latitude": 39.9103,
+      "longitude": 116.4598,
+      "businessDistrict": "CBD国贸商务区"
+    },
+    "policy": {
+      "description": "<p><b>入住及退房</b></p><ul><li>入住时间：14:00后</li><li>退房时间：12:00前</li></ul>...",
+      "checkinFrom": "14:00:00",
+      "checkoutTo": "12:00:00",
+      "extraInfoList": [
+        {
+          "type": "CheckInOut",
+          "description": "入住时间开始于",
+          "value": "14:00"
+        },
+        {
+          "type": "deposit",
+          "description": "押金要求",
+          "value": "入住时需交纳按每间每晚 500 CNY 押金"
+        }
+      ]
+    },
+    "facilities": [
+      "免费WiFi", "免费停车场", "健身室", "室内游泳池", "24小时前台", "电梯"
+    ],
+    "images": [
+      {
+        "url": "https://image-cdn.rollinggo.cn/v2/513894/hotel/default/2/image/0fdfc8cb2fe196dd308774be7345f0f0.jpg",
+        "isDefault": true
+      },
+      {
+        "url": "https://image-cdn.rollinggo.cn/v2/513894/hotel/default/2/image/17d6d651ba166e838a22800530f24d21.jpg",
+        "isDefault": false
+      }
+    ],
+    "tags": [
+      "地标建筑", "高空云端景观", "豪华五星", "国贸CBD"
+    ]
+  }
+}
+```
+
+#### 输出示例 ②：按分类精准查询（例如仅查政策与设施 `categories: ["policy", "facilities"]`）
+
+```json
+{
+  "success": true,
+  "code": 2000,
+  "message": "酒店静态信息获取成功",
+  "hotelStaticInfo": {
+    "policy": {
+      "description": "<p><b>入住及退房</b></p><ul><li>入住时间：14:00后</li><li>退房时间：12:00前</li></ul>...",
+      "checkinFrom": "14:00:00",
+      "checkoutTo": "12:00:00",
+      "extraInfoList": [
+        {
+          "type": "CheckInOut",
+          "description": "入住时间开始于",
+          "value": "14:00"
+        }
+      ]
+    },
+    "facilities": [
+      "免费WiFi", "免费停车场", "健身室", "室内游泳池", "24小时前台", "电梯"
+    ]
+  }
+}
+```
+
+---
+
+## 11. 统一错误码与异常映射
+
+| 错误码 (`code`) | HTTP 状态 | 错误枚举 | 场景说明 | 客户端 / Agent 应对建议 |
+| :-- | :-: | :-- | :-- | :-- |
+| `6000` | 400 | `PARAM_ERROR_OR_NOT_FOUND` | 入参校验失败（如 hotelId 与 name 均未传）或未匹配到有效酒店 | 提示用户补充酒店名/ID 或重新核对 |
+| `2000` | 200 | `SUCCESS` | 操作成功 | 正常渲染成功状态与文案 |
+| `6001` | 403 | `BOOKING_FORBIDDEN` | 订单不存在或不属于当前登录用户 | 提示用户核对订单号 |
+| `6201` | 400 | `PRICE_CONFIRM_FAILED` | 房型验价失败/房间已售罄 | 引导用户重新搜索可用房型 |
+| `6207` | 400 | `CONFIRM_ID_EXPIRED` | 取消确认凭证已过期（超过 10 分钟） | 引导重新调用`preCancelHotelBooking` 获取新凭证 |
+| `6301` | 400 | `BOOKING_NON_CANCELABLE` | 订单按规则无法在线取消 | 展示 message 中的客服电话及邮箱，引导联系人工 |
+| `6302` | 502 | `SUPPLIER_CANCEL_FAILED` | 上游供应商取消异常 | 建议稍后重试或联系客服协助处理 |

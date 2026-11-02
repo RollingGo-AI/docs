@@ -17,6 +17,7 @@ icon: "toolbox"
 | 7 | **`getHotelOrderDetail`** | ❌ | ✅ | Query full order details (voucher number, address, GPS coordinates, front desk phone) |
 | 8 | **`preCancelHotelBooking`** | ❌ | ✅ | **Two-phase cancellation quote**: Quotes penalties and issues 10-minute `confirmId` |
 | 9 | **`confirmCancelHotelBooking`** | ❌ | ✅ | **Two-phase cancellation execution**: Irreversible execution with `confirmId` and automatic refund |
+| 10 | **`getHotelStaticInfo`** | ✅ | ✅ | Query hotel static information (profile, location, policies, amenities, images, tags), supports category filtering |
 
 ---
 
@@ -556,10 +557,161 @@ Executes the irreversible final cancellation of a hotel booking using `confirmId
 
 ---
 
-## 10. Unified Error Codes & Exception Mapping
+## 10. getHotelStaticInfo — Query Hotel Static Information
+
+### Description
+
+Queries hotel static information, including basic details, physical location, policies, amenities, images, and tags. Supports on-demand category filtering via `categories`.
+
+- **Operation Hints**: `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`
+
+### Input Parameters (Complete field list 📋)
+
+_Either `hotelId` or `name` is required; if both are provided, `hotelId` takes precedence._
+
+| Parameter | Type | Required | Default | Description |
+| :-- | :-- | :-: | :-: | :-- |
+| `hotelId` | integer | ⚠️ One of\* | — | Unique hotel ID (preferred for high-precision matching) [format: int32] |
+| `name` | string | ⚠️ One of\* | — | Hotel name (fuzzy matching, used when `hotelId` is unavailable) |
+| `categories` | array[string] | ❌ | `["all"]` | **On-demand category projection list**. Enum values:<br />• `"basic"`: Basic metadata (name, nameEn, brand, star rating, description, phone, country, city)<br />• `"location"`: Geographical data (address, coordinates, business district)<br />• `"policy"`: Service policies (check-in/out times, comprehensive policy text, extra notices list)<br />• `"facilities"`: Amenity list (Wi-Fi, parking, gym, etc. as a flat array)<br />• `"images"`: Curated gallery images (up to 5 images, with `isDefault` main cover flag)<br />• `"tags"`: Feature tags<br />• `"all"`: Returns all 6 categories (default) |
+| `localeParam` | object | ❌ | — | **[Global Edition Only]** Language configuration. China edition is fixed to Chinese and does not support this parameter |
+| `localeParam.language` | string | ❌ | `"en"` | **[Global Edition Only]** Language code. Supported enums: `"en"` (English, default), `"zh"` (Chinese), `"ja"` (Japanese) |
+
+### Output
+
+#### Top-Level Fields
+
+| Field | Type | Nullable | Description |
+| :-- | :-- | :-: | :-- |
+| `success` | boolean | ❌ No | Whether the API invocation succeeded |
+| `code` | integer | ❌ No | Business status code (`2000` = success; `6000` = parameter error or hotel not found) |
+| `message` | string | ❌ No | Status feedback message |
+| `hotelStaticInfo` | object | ✅ Yes | Core static hotel detail payload (may be null on error or no match) |
+
+#### hotelStaticInfo Detailed Field Breakdown (All 6 Modules)
+
+| Module | Field | Type | Nullable | Description |
+| :-- | :-- | :-- | :-: | :-- |
+| **`basic`** | `name` | string | ❌ No | Hotel name (localized according to language environment) |
+|  | `nameEn` | string | ❌ No | Official English name of the hotel (returns empty string or pinyin if unavailable) |
+|  | `brand` | string | ✅ Yes | Hotel chain brand (null or omitted if unbranded / independent) |
+|  | `starRating` | number | ❌ No | Hotel star rating (1.0 to 5.0) |
+|  | `description` | string | ❌ No | Official rich-text description (HTML format) |
+|  | `phone` | string | ❌ No | Hotel front desk contact phone number |
+|  | `country` | string | ❌ No | Country of location (e.g., "Singapore", "Japan", "China") |
+|  | `city` | string | ✅ Yes | City of location (e.g., "Beijing", "Tokyo"; supplemented from location if unmapped) |
+| **`location`** | `address` | string | ❌ No | Detailed physical street address |
+|  | `latitude` | double | ❌ No | Latitude in WGS-84 standard coordinates |
+|  | `longitude` | double | ❌ No | Longitude in WGS-84 standard coordinates |
+|  | `businessDistrict` | string | ✅ Yes | Commercial district name (null or empty string if not applicable) |
+| **`policy`** | `description` | string | ❌ No | Comprehensive policy rich-text HTML (check-in restrictions, age limits, pets, ID requirements, extra bed & deposit rules) |
+|  | `checkinFrom` | string | ❌ No | Earliest check-in time (`"14:00"` or `"14:00:00"`) |
+|  | `checkoutTo` | string | ❌ No | Latest check-out time (`"12:00"` or `"12:00:00"`) |
+|  | `extraInfoList` | array[object] | ❌ No | Extra notices and policy items (`{type, description, value}`; returns `[]` if empty) |
+|  | `extraInfoList[].type` | string | ❌ No | Policy item type (e.g., `"deposit"`, `"notice"`, `"CheckInOut"`, `"Child"`) |
+|  | `extraInfoList[].description` | string | ❌ No | Policy title / type description |
+|  | `extraInfoList[].value` | string | ❌ No | Specific policy item text |
+| **`facilities`** | — | array[string] | ❌ No | Flat amenity list (e.g., `["Free Wi-Fi", "Fitness Center", "Swimming Pool", "Elevator"]`) |
+| **`images`** | — | array[object] | ❌ No | **Curated hotel photos, strictly capped at maximum 5 images** |
+|  | `url` | string | ❌ No | Photo CDN URL |
+|  | `isDefault` | boolean | ❌ No | **Main cover image flag**. `true` indicates the primary cover image, `false` for others |
+| **`tags`** | — | array[string] | ❌ No | Hotel feature tags list (e.g., `["Near Subway", "Free Parking", "Business Travel"]`) |
+
+#### Example Output ①: Full Payload (Default or `categories: ["all"]`)
+
+```json
+{
+  "success": true,
+  "code": 2000,
+  "message": "Hotel static info fetched successfully",
+  "hotelStaticInfo": {
+    "basic": {
+      "name": "Marina Bay Sands",
+      "nameEn": "Marina Bay Sands",
+      "brand": "Marina Bay Sands",
+      "starRating": 5.0,
+      "description": "<p><b>Property Location</b><br/>With a stay at Marina Bay Sands, you will be centrally located in Singapore...</p>",
+      "phone": "65-66-888868",
+      "country": "Singapore",
+      "city": "Singapore"
+    },
+    "location": {
+      "address": "10 Bayfront Avenue",
+      "latitude": 1.2829,
+      "longitude": 103.8588,
+      "businessDistrict": "Marina Bay"
+    },
+    "policy": {
+      "description": "<p>A cash security deposit of SGD 200 is required upon check-in...</p>",
+      "checkinFrom": "15:00:00",
+      "checkoutTo": "11:00:00",
+      "extraInfoList": [
+        {
+          "type": "CheckInOut",
+          "description": "Check-in time starts at",
+          "value": "15:00"
+        },
+        {
+          "type": "CheckInOut",
+          "description": "Check-out time ends at",
+          "value": "11:00"
+        }
+      ]
+    },
+    "facilities": [
+      "Free Wi-Fi", "Swimming Pool", "Fitness Center", "Nightclub", "24-hour Front Desk", "Elevator"
+    ],
+    "images": [
+      {
+        "url": "https://image-cdn.rollinggo.cn/v2/513894/hotel/default/2/image/0fdfc8cb2fe196dd308774be7345f0f0.jpg",
+        "isDefault": true
+      },
+      {
+        "url": "https://image-cdn.rollinggo.cn/v2/513894/hotel/default/2/image/17d6d651ba166e838a22800530f24d21.jpg",
+        "isDefault": false
+      }
+    ],
+    "tags": [
+      "Luxury Resort", "Infinity Pool", "Landmark Architecture", "Marina Bay"
+    ]
+  }
+}
+```
+
+#### Example Output ②: Filtered Categories (`categories: ["policy", "facilities"]`)
+
+```json
+{
+  "success": true,
+  "code": 2000,
+  "message": "Hotel static info fetched successfully",
+  "hotelStaticInfo": {
+    "policy": {
+      "description": "<p>Check-in time starts at 15:00, check-out time is 11:00...</p>",
+      "checkinFrom": "15:00:00",
+      "checkoutTo": "11:00:00",
+      "extraInfoList": [
+        {
+          "type": "CheckInOut",
+          "description": "Check-in time starts at",
+          "value": "15:00"
+        }
+      ]
+    },
+    "facilities": [
+      "Free Wi-Fi", "Fitness Center", "Swimming Pool", "24-hour Front Desk", "Elevator"
+    ]
+  }
+}
+```
+
+---
+
+## 11. Unified Error Codes & Exception Mapping
 
 | Code (`code`) | HTTP Status | Error Enum | Description | Client / Agent Action |
-|:---|:---:|:---|:---|:---|
+| :-- | :-: | :-- | :-- | :-- |
+| `6000` | 400 | `PARAM_ERROR_OR_NOT_FOUND` | Missing hotelId and name, or hotel not found | Prompt user for hotel name/ID or check spelling |
 | `2000` | 200 | `SUCCESS` | Operation succeeded | Render success card and message |
 | `6001` | 403 | `BOOKING_FORBIDDEN` | Order does not exist or belongs to another user | Prompt user to check order number |
 | `6201` | 400 | `PRICE_CONFIRM_FAILED` | Price verification failed / room sold out | Guide user to search alternative rooms |
@@ -570,4 +722,4 @@ Executes the irreversible final cancellation of a hotel booking using `confirmId
 ---
 
 *Maintained by: RollingGo Open Platform Engineering Team*  
-*Last Updated: 2026-10-16*
+*Last Updated: 2026-11-02*

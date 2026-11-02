@@ -51,10 +51,11 @@ claude mcp add   --transport http   --header "Authorization: Bearer mcp_your_api
 
 ### Step 3: Call Query Tools & Render Cards
 
-Redirect Mode provides **3 core query tools**:
+Redirect Mode provides **4 core query tools**:
 
 | Tool Name | Responsibility | Key Output Field |
 | :--- | :--- | :--- |
+| **`getHotelStaticInfo`** | Query hotel static information (profile, location, policies, amenities, images, tags) with category filtering | Static data payload |
 | **`getHotelSearchTags`** | Retrieve platform-supported tags (WiFi, pool, family-friendly, subway) for preference extraction | Tags list |
 | **`searchHotels`** | Search hotels by destination, dates, star ratings, and budget | Hotel summary, minimum rate, and **`bookingUrl`** |
 | **`getHotelDetail`** | Query room rate plans, facilities, meal types, and cancellation policies | Room rates and room-level booking URLs |

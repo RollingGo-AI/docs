@@ -12,7 +12,7 @@ The RollingGo Hotel Open Platform provides two core integration patterns for par
 
 | Comparison Dimension | Redirect Mode | In-Agent Closed-Loop Mode |
 | :--- | :--- | :--- |
-| **Available Tools** | **3 Tools** (Search tags, hotel search, hotel details) | **9 Tools** (From search, price locking, booking, payment, to post-sales cancellation) |
+| **Available Tools** | **4 Tools** (Static info, search tags, hotel search, hotel details) | **10 Tools** (Static info, search, price locking, booking, orders, cancellation) |
 | **Agent Core Role** | Search & recommendation only; pushes booking link cards | Guides users through "Search → Details → Lock → Book → Pay → Order Query → Safe Cancellation" full flow |
 | **Booking & Payment Surface** | User clicks and redirects to **RollingGo H5 / WeChat Mini Program** to complete order | Order created within Agent chat; user clicks **Cashier `paymentUrl`** to pay |
 | **Price Lock Capability** | ❌ No price locking | ✅ Supported via `hotelPriceConfirm` (30-minute lock) with guest profile prefill |
@@ -27,7 +27,7 @@ The RollingGo Hotel Open Platform provides two core integration patterns for par
 
 ### Interaction Characteristics
 
-1. The Agent invokes only 3 query tools: `getHotelSearchTags`, `searchHotels`, and `getHotelDetail`;
+1. The Agent invokes only 4 query tools: `getHotelStaticInfo`, `getHotelSearchTags`, `searchHotels`, and `getHotelDetail`;
 2. The Agent does not create bookings or initiate payments; its capability stops at "search recommendation → push booking link";
 3. The user clicks `bookingUrl` on the card to redirect to the RollingGo H5 page or Mini Program to select rooms, fill in personal details, and complete payment.
 
@@ -66,7 +66,7 @@ sequenceDiagram
 
 ### Interaction Characteristics
 
-1. Utilizes all **9 Tools** for a complete closed loop from information discovery, price locking, booking, payment, order inspection, to post-sales cancellation;
+1. Utilizes all **10 Tools** for full flow from static info and search to booking, orders, and cancellation;
 2. **Price & Room Locking**: Calls `hotelPriceConfirm` before booking to lock real-time price and inventory for 30 minutes, preventing price slippage, while returning intelligent guest profile (`guestProfile`);
 3. **Secure Cashier Payment**: Issues a secure cashier link (`paymentUrl`) upon booking creation for seamless and compliant user checkout;
 4. **Full Lifecycle Order Management**: Users can query booking summaries (`searchHotelOrders`) and inspect detailed check-in vouchers, navigation coordinates, and policies (`getHotelOrderDetail`) anytime in chat;

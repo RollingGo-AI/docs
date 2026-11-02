@@ -8,6 +8,23 @@ icon:
   library: "fontawesome"
 ---
 
+## v2.10 (2026-11-02)
+
+### Added Hotel Static Information Tool (`getHotelStaticInfo`)
+
+- **Static Information Query**:
+  - Retrieve hotel basic details, phone number, address/GPS, policies, amenities, images, and tags.
+- **On-Demand Category Filtering (`categories`)**:
+  - Filter response by categories (`basic`, `location`, `policy`, `facilities`, `images`, `tags`) to reduce payload size.
+- **Image Controls**:
+  - Returns up to 5 images, with `isDefault: true` on the primary cover photo.
+- **Flat Amenities**:
+  - Returns amenities as a flat string array.
+- **Multilingual Support**:
+  - Global edition supports English, Chinese, and Japanese via `localeParam.language`.
+
+---
+
 ## v2.9 (2026-10-22)
 
 ### 🚀 Core Update: Stateless Search Pagination Mechanism
@@ -58,8 +75,7 @@ icon:
 
 * **Standardized International Parameters (`localeParam`)**:
   * Global endpoints natively support `localeParam: { currency, language }`, supporting 25+ global currencies (USD, EUR, JPY, GBP, HKD, etc.).
-* **Advanced Room Filtering (`filter`)**:
-  * `getHotelDetail` supports free cancellation (`cancelPolicy`) and breakfast included (`mealType`) filtering to match user preferences precisely.
+* **Advanced Room Filtering (`filter`)**:\\n  - `getHotelDetail` supports free cancellation (`cancelPolicy`) and breakfast included (`mealType`) filtering to match user preferences precisely.
 * **Cleaned Deprecated Parameters**:
   * Completely cleaned legacy fields for a cleaner API contract.
 

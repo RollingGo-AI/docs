@@ -21,7 +21,7 @@ Because Closed-Loop Mode handles booking creation, payment checkout, real guest 
 
 The Closed-Loop Mode consists of 6 integrated phases:
 
-```
+```text
 [Phase 1: Search & Filter] --> [Phase 2: Price & Inventory Lock] --> [Phase 3: Order & Cashier]
      searchHotels                     hotelPriceConfirm                  createHotelBookingWithPaymentURL
      getHotelDetail
@@ -36,7 +36,7 @@ The Closed-Loop Mode consists of 6 integrated phases:
 
 ### Phase 1: Search & Precise Room Filtering
 
-When a user requests accommodations, the Agent sequentially calls `searchHotels` and `getHotelDetail`:
+When a user requests accommodations, the Agent sequentially calls `searchHotels` and `getHotelDetail` (or `getHotelStaticInfo` for hotel amenities and policies):
 
 1. **`searchHotels`**: Filter candidates by destination, landmarks, dates, star ratings, and budget;
 2. **`getHotelDetail`**: Supports server-side exact filtering (e.g. `filter: { mealType: "DOUBLE_BREAKFAST", cancelable: "CANCELABLE" }`), directly returning matching room rate plans (`roomRatePlans`) without requiring the LLM to parse raw lists.

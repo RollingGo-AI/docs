@@ -13,7 +13,7 @@ RollingGo 酒店开放平台为合作伙伴提供 **跳转模式** 与 **闭环�
 
 | 比较维度 | 跳转模式 | 端内闭环模式 |
 | :--- | :--- | :--- |
-| **可用 Tool 数量** | **3 个 Tool**（搜索、房型详情、搜索标签） | **9 个 Tool**（从搜索到下单支付及售后退改） |
+| **可用 Tool 数量** | **4 个 Tool**（静态信息、搜索、房型详情、搜索标签） | **10 个 Tool**（静态信息、搜索、锁价、下单、查单及退改） |
 | **Agent 核心角色** | 仅负责酒店搜索与房型推荐，推送预订链接卡片 | 引导用户完成“搜 → 查 → 锁 → 下单 → 支付 → 查单 → 售后退订”全流程 |
 | **下单与支付承载** | 用户点击跳转 **RollingGo H5 / 微信小程序** 自行下单支付 | 在 Agent 对话内生单，用户点击**安全收银台 `paymentUrl`** 完成支付 |
 | **锁价能力** | ❌ 无锁价能力 | ✅ 支持 `hotelPriceConfirm` 锁价（30 分钟）并返回常住人画像 |
@@ -28,7 +28,7 @@ RollingGo 酒店开放平台为合作伙伴提供 **跳转模式** 与 **闭环�
 
 ### 交互特征
 
-1. Agent 仅调用 `getHotelSearchTags`、`searchHotels` 与 `getHotelDetail` 3 个查询类 Tool；
+1. Agent 仅调用 `getHotelStaticInfo`、`getHotelSearchTags`、`searchHotels` 与 `getHotelDetail` 4 个查询类 Tool；
 2. Agent 不创建订单、不发起支付，能力止步于“搜索推荐 → 推送预订链接”；
 3. 用户点击卡片中的 `bookingUrl` 跳转至 RollingGo H5 或小程序自行选房、填写个人信息并完成支付。
 
@@ -67,7 +67,7 @@ sequenceDiagram
 
 ### 交互特征
 
-1. 完整使用全部 **9 个 Tool**，实现从信息检索、锁价下单到履约查单、售后退改的完整商业闭环；
+1. 完整使用全部 **10 个 Tool**，实现从静态信息、搜索、锁价下单到查单与退改的全流程；
 2. **锁价防跳价**：下单前通过 `hotelPriceConfirm` 锁定 30 分钟实时价格与房态，并返回智能预填常住旅客画像 `guestProfile`；
 3. **安全收银台支付**：生单后下发收银台链接（`paymentUrl`），用户点击即可完成支付，资金安全合规；
 4. **全周期订单管理**：用户可随时在对话中查询订单列表（`searchHotelOrders`）及获取多维结构化详情凭证（`getHotelOrderDetail`）；
