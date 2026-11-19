@@ -32,35 +32,6 @@ RollingGo 酒店开放平台为合作伙伴提供 **跳转模式** 与 **闭环�
 2. Agent 不创建订单、不发起支付，能力止步于“搜索推荐 → 推送预订链接”；
 3. 用户点击卡片中的 `bookingUrl` 跳转至 RollingGo H5 或小程序自行选房、填写个人信息并完成支付。
 
-### 跳转模式交互时序图
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as "终端用户"
-    participant Agent as "AI Agent 客户端"
-    participant RG as "RollingGo MCP 服务"
-    participant H5 as "RollingGo H5 / 小程序"
-    participant Pay as "支付渠道 (微信/支付宝)"
-
-    User->>Agent: "帮我找上海外滩的五星酒店，明晚1晚"
-    Agent->>RG: 调用 searchHotels(上海, 外滩, 五星)
-    RG-->>Agent: 返回酒店列表 (包含 bookingUrl)
-    Agent-->>User: 推荐酒店列表及预订卡片
-
-    User->>Agent: "选第一家，帮我订一下"
-    Agent-->>User: "已为您找到预订入口，请点击链接进入页面完成下单："
-    Agent->>User: 下发 bookingUrl 链接卡片
-
-    User->>H5: 点击链接跳转 H5/小程序
-    User->>H5: 自行选房型、填入住人、提交订单
-    User->>Pay: 在 H5 内唤起收银台完成支付
-    Pay-->>H5: 支付成功
-    H5-->>User: 展示订单确认与入住凭证
-
-    Note over User, Agent: 订单管理 - 跳转模式无订单接口，Agent 引导用户在小程序中查看
-```
-
 ---
 
 ## 3. 模式二：闭环模式（对话内全链路闭环）
@@ -72,60 +43,6 @@ sequenceDiagram
 3. **安全收银台支付**：生单后下发收银台链接（`paymentUrl`），用户点击即可完成支付，资金安全合规；
 4. **全周期订单管理**：用户可随时在对话中查询订单列表（`searchHotelOrders`）及获取多维结构化详情凭证（`getHotelOrderDetail`）；
 5. **两阶段安全取消机制（Quote-Execute）**：新增 `preCancelHotelBooking` 预取消试算罚金（派发 10 分钟时效凭证 `confirmId`），用户确认后调用 `confirmCancelHotelBooking` 执行最终不可逆取消。仅免费取消支持在线闭环，产生罚金或不可退订单自动转接客服。
-
-### 闭环模式交互时序图
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as "终端用户"
-    participant Agent as "AI Agent 客户端"
-    participant MCP as "RollingGo MCP 服务"
-    participant Cashier as "Dida 安全收银台"
-
-    Note over User, Cashier: 第一阶段 - 多语言多币种搜索
-    User->>Agent: "帮我找西溪湿地附近的4星级以上酒店，预算800元内"
-    Agent->>MCP: searchHotels(place="西溪湿地", hotelTags={maxPricePerNight:800})
-    MCP-->>Agent: 返回酒店推荐列表 (支持多语言与实时换汇)
-    Agent-->>User: 结构化推荐酒店列表与参考起价
-
-    Note over User, Cashier: 第二阶段 - 查看详情与房型精准筛选
-    User->>Agent: "看下菲住布渴，只要含双份早餐且能免费取消的"
-    Agent->>MCP: getHotelDetail(hotelId=102906, filter={mealType:"DOUBLE_BREAKFAST", cancelable:"CANCELABLE"})
-    MCP-->>Agent: 服务端精准过滤，返回符合条件的 roomRatePlans
-    Agent-->>User: 展示筛选后的房型图文卡片与设施详情
-
-    Note over User, Cashier: 第三阶段 - 实时验价与价格锁定 (锁价 30 分钟)
-    User->>Agent: "帮我订这个行政大床房"
-    Agent->>MCP: hotelPriceConfirm(hotelID=102906, ratePlanID="RP_992019_DELUXE_BF2")
-    MCP-->>Agent: 校验库存，返回 referenceNo + 最终锁定总价 + guestProfile
-    Agent-->>User: 提示最终总价与退改政策，请求确认住客信息
-
-    Note over User, Cashier: 第四阶段 - 生单与收银台支付
-    User->>Agent: "确认预订，住客张三，手机号 13800138000"
-    Agent->>MCP: createHotelBookingWithPaymentURL(referenceNo, contact, guestList)
-    MCP-->>Agent: 生成订单，返回 orderNo + paymentUrl
-    Agent-->>User: 返回订单号与支付链接，引导在 30 分钟内完成支付
-
-    User->>Cashier: 点击 paymentUrl，在 Dida 收银台完成支付
-    Cashier-->>User: 支付成功，下发入住凭证
-
-    Note over User, Cashier: 第五阶段 - 订单查询与凭证详情
-    User->>Agent: "查一下我刚刚下的酒店订单"
-    Agent->>MCP: getHotelOrderDetail(orderNo="H178969795522549201")
-    MCP-->>Agent: 返回订单完整详情（含入离凭证、地图经纬度、酒店电话）
-    Agent-->>User: 渲染结构化订单卡片
-
-    Note over User, Cashier: 第六阶段 - 两阶段安全售后取消
-    User->>Agent: "临时有事去不了，帮我把刚才的订单取消退订"
-    Agent->>MCP: preCancelHotelBooking(orderNo="H178969795522549201")
-    MCP-->>Agent: 校验罚金=0，派发 10 分钟 confirmId: "CNF_..."，canCancel=true
-    Agent-->>User: 明确提示：“当前可免费取消，凭证10分钟有效，是否确认取消？”
-    User->>Agent: "确认取消"
-    Agent->>MCP: confirmCancelHotelBooking(orderNo, bookingId, confirmId)
-    MCP-->>Agent: 执行取消成功 (success=true, code=2000)
-    Agent-->>User: 提示订单已成功取消，房款原路退回
-```
 
 ---
 

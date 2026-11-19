@@ -31,35 +31,6 @@ The RollingGo Hotel Open Platform provides two core integration patterns for par
 2. The Agent does not create bookings or initiate payments; its capability stops at "search recommendation → push booking link";
 3. The user clicks `bookingUrl` on the card to redirect to the RollingGo H5 page or Mini Program to select rooms, fill in personal details, and complete payment.
 
-### Redirect Mode Sequence Diagram
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as "End User"
-    participant Agent as "AI Agent Client"
-    participant RG as "RollingGo MCP Service"
-    participant H5 as "RollingGo H5 / Mini Program"
-    participant Pay as "Payment Channels (WeChat / Alipay)"
-
-    User->>Agent: "Find 5-star hotels near the Bund in Shanghai for 1 night tomorrow"
-    Agent->>RG: searchHotels(Shanghai, The Bund, 5-Star)
-    RG-->>Agent: Returns hotel list (including bookingUrl)
-    Agent-->>User: Recommends hotel list with booking cards
-
-    User->>Agent: "I choose the first one, help me book it"
-    Agent-->>User: "Here is your booking entry, please click the link to complete your order:"
-    Agent->>User: Sends bookingUrl link card
-
-    User->>H5: Clicks link to open H5 / Mini Program
-    User->>H5: Selects room rate plan, enters guest info, submits order
-    User->>Pay: Completes payment within H5 cashier
-    Pay-->>H5: Payment successful
-    H5-->>User: Displays order confirmation and check-in voucher
-
-    Note over User, Agent: Order Management - Redirect Mode has no order tools, and Agent guides user to check in Mini Program
-```
-
 ---
 
 ## 3. Mode 2: In-Agent Closed-Loop Mode (Full In-Chat Transactional Loop)
@@ -71,60 +42,6 @@ sequenceDiagram
 3. **Secure Cashier Payment**: Issues a secure cashier link (`paymentUrl`) upon booking creation for seamless and compliant user checkout;
 4. **Full Lifecycle Order Management**: Users can query booking summaries (`searchHotelOrders`) and inspect detailed check-in vouchers, navigation coordinates, and policies (`getHotelOrderDetail`) anytime in chat;
 5. **Two-Phase Safe Cancellation Mechanism (Quote-Execute Pattern)**: Adds `preCancelHotelBooking` to assess cancellation penalties and issue a **10-minute valid token** (`confirmId`). After explicit user confirmation, `confirmCancelHotelBooking` executes final irreversible cancellation. Orders with penalties or non-refundable terms are seamlessly routed to customer service.
-
-### Closed-Loop Mode Sequence Diagram
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as "End User"
-    participant Agent as "AI Agent Client"
-    participant MCP as "RollingGo MCP Service"
-    participant Cashier as "Dida Secure Cashier"
-
-    Note over User, Cashier: Stage 1 - Multilingual & Multi-Currency Search
-    User->>Agent: "Find 4-star+ hotels near Xixi Wetland under 800 RMB"
-    Agent->>MCP: searchHotels(place="Xixi Wetland", hotelTags={maxPricePerNight:800})
-    MCP-->>Agent: Returns hotel recommendations (supporting multilingual & real-time FX)
-    Agent-->>User: Displays structured hotel list with reference starting prices
-
-    Note over User, Cashier: Stage 2 - View Details & Precision Room Filtering
-    User->>Agent: "Show FlyZoo Hotel, only rooms with double breakfast and free cancellation"
-    Agent->>MCP: getHotelDetail(hotelId=102906, filter={mealType:"DOUBLE_BREAKFAST", cancelable:"CANCELABLE"})
-    MCP-->>Agent: Server-side precision filtering, returns matched roomRatePlans
-    Agent-->>User: Displays filtered room rate plans with amenities
-
-    Note over User, Cashier: Stage 3 - Real-Time Price Verification & Locking (30-min Lock)
-    User->>Agent: "Book this Executive King Room"
-    Agent->>MCP: hotelPriceConfirm(hotelID=102906, ratePlanID="RP_992019_DELUXE_BF2")
-    MCP-->>Agent: Verifies inventory, returns referenceNo + locked price + guestProfile
-    Agent-->>User: Confirms final price and policies, requests guest information
-
-    Note over User, Cashier: Stage 4 - Booking Creation & Cashier Payment
-    User->>Agent: "Confirm booking, guest: San Zhang, phone: 13800138000"
-    Agent->>MCP: createHotelBookingWithPaymentURL(referenceNo, contact, guestList)
-    MCP-->>Agent: Creates booking, returns orderNo + paymentUrl
-    Agent-->>User: Returns order number and payment link, guides user to pay within 30 minutes
-
-    User->>Cashier: Clicks paymentUrl and completes payment in Dida Cashier
-    Cashier-->>User: Payment successful, check-in voucher issued
-
-    Note over User, Cashier: Stage 5 - Order Query & Check-In Voucher
-    User->>Agent: "Check the hotel order I just placed and show me the address"
-    Agent->>MCP: getHotelOrderDetail(orderNo="H178969795522549201")
-    MCP-->>Agent: Returns full order details (voucher, GPS coordinates, front desk phone)
-    Agent-->>User: Displays structured order details card
-
-    Note over User, Cashier: Stage 6 - Two-Phase Safe Cancellation Flow
-    User->>Agent: "Something came up and I can't travel tomorrow, please cancel my reservation"
-    Agent->>MCP: preCancelHotelBooking(orderNo="H178969795522549201")
-    MCP-->>Agent: Penalty=0, issues 10-minute confirmId: "CNF_...", canCancel=true
-    Agent-->>User: "Free cancellation is currently available. Confirm token is valid for 10 minutes. Do you confirm cancellation?"
-    User->>Agent: "Yes, please cancel it"
-    Agent->>MCP: confirmCancelHotelBooking(orderNo, bookingId, confirmId)
-    MCP-->>Agent: Execution successful (success=true, code=2000)
-    Agent-->>User: Confirms booking cancellation and full refund initiation
-```
 
 ---
 
